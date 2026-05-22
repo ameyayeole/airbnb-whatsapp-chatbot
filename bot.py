@@ -182,22 +182,9 @@ def _ask_dates(phone: str, content: str):
     s["check_out"] = co.isoformat()
     s["nights"] = nights
 
-    whatsapp.send_text(
-        phone,
-        f"Got it! *{ci.strftime('%d %b')} → {co.strftime('%d %b')}* ({nights} night{'s' if nights > 1 else ''}).\n\n"
-        "How many guests will be staying? (Enter a number)",
-    )
-    _set_state(phone, "ASK_GUESTS")
-
-
-def _ask_guests(phone: str, content: str):
-    if not content.isdigit() or int(content) < 1:
-        whatsapp.send_text(phone, "Please enter a valid number of guests (e.g. 2).")
-        return
-
-    _session(phone)["pax"] = int(content)
     whatsapp.send_buttons(
         phone,
+        f"Got it! *{ci.strftime('%d %b %Y')} → {co.strftime('%d %b %Y')}* ({nights} night{'s' if nights > 1 else ''}).\n\n"
         "What type of booking are you looking for?",
         [
             {"id": "room_couple", "title": "Couple Room"},
@@ -212,24 +199,20 @@ def _ask_room_type(phone: str, content: str):
         s = _session(phone)
         s["room_type"] = "couple"
         s["rooms_count"] = 1
-        _check_and_show_availability(phone)
+        whatsapp.send_text(phone, "How many guests will be staying? (max 3)\nEnter a number:")
+        _set_state(phone, "ASK_GUESTS")
     elif content == "room_bulk":
         _session(phone)["room_type"] = "bulk"
         whatsapp.send_list(
             phone,
             "How many rooms do you need? (We have 4 rooms total)",
             "Select Rooms",
-            [
-                {
-                    "title": "Number of Rooms",
-                    "rows": [
-                        {"id": "rooms_1", "title": "1 Room"},
-                        {"id": "rooms_2", "title": "2 Rooms"},
-                        {"id": "rooms_3", "title": "3 Rooms"},
-                        {"id": "rooms_4", "title": "4 Rooms (All)"},
-                    ],
-                }
-            ],
+            [{"title": "Number of Rooms", "rows": [
+                {"id": "rooms_1", "title": "1 Room"},
+                {"id": "rooms_2", "title": "2 Rooms"},
+                {"id": "rooms_3", "title": "3 Rooms"},
+                {"id": "rooms_4", "title": "4 Rooms (All)"},
+            ]}],
         )
         _set_state(phone, "ASK_ROOM_COUNT")
     else:
@@ -243,6 +226,32 @@ def _ask_room_count(phone: str, content: str):
         whatsapp.send_text(phone, "Please select the number of rooms from the list.")
         return
     _session(phone)["rooms_count"] = count
+    max_guests = count * 3
+    whatsapp.send_text(
+        phone,
+        f"You selected *{count} room(s)*. How many guests in total? (max {max_guests})\nEnter a number:",
+    )
+    _set_state(phone, "ASK_GUESTS")
+
+
+def _ask_guests(phone: str, content: str):
+    if not content.isdigit() or int(content) < 1:
+        whatsapp.send_text(phone, "Please enter a valid number of guests (e.g. 2).")
+        return
+
+    s = _session(phone)
+    pax = int(content)
+    max_allowed = s["rooms_count"] * 3
+
+    if pax > max_allowed:
+        whatsapp.send_text(
+            phone,
+            f"Sorry, maximum *{max_allowed} guests* allowed for {s['rooms_count']} room(s) "
+            f"(3 guests per room).\nPlease enter a number up to {max_allowed}:",
+        )
+        return
+
+    s["pax"] = pax
     _check_and_show_availability(phone)
 
 
