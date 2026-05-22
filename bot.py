@@ -208,7 +208,6 @@ def _ask_room_type(phone: str, content: str):
             "How many rooms do you need? (We have 4 rooms total)",
             "Select Rooms",
             [{"title": "Number of Rooms", "rows": [
-                {"id": "rooms_1", "title": "1 Room"},
                 {"id": "rooms_2", "title": "2 Rooms"},
                 {"id": "rooms_3", "title": "3 Rooms"},
                 {"id": "rooms_4", "title": "4 Rooms (All)"},
