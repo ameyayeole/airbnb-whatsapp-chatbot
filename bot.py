@@ -73,45 +73,77 @@ _MONTHS = {
 def _parse_date_range(text: str):
     """
     Parse strings like:
-      "4 June to 6 June"   "4-6 June"   "4th June to 6th June"
-      "04/06 to 06/06"     "4 Jun - 6 Jun"
+      "4 June 2026 to 6 June 2026"   "4 June to 6 June"
+      "4-6 June 2026"                "04/06/2026 to 06/06/2026"
     Returns (check_in: date, check_out: date, nights: int) or None.
     """
     text = text.lower().strip()
-    year = date.today().year
+    current_year = date.today().year
 
-    # try DD/MM to DD/MM
-    m = re.match(r"(\d{1,2})[/\-](\d{1,2})\s*(?:to|[-–])\s*(\d{1,2})[/\-](\d{1,2})", text)
+    month_pattern = "|".join(sorted(_MONTHS.keys(), key=len, reverse=True))
+
+    # try DD/MM/YYYY to DD/MM/YYYY
+    m = re.match(
+        r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\s*(?:to|[-–])\s*(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})",
+        text,
+    )
     if m:
-        d1, mo1, d2, mo2 = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4))
-        ci = date(year, mo1, d1)
-        co = date(year, mo2, d2)
-        if co <= ci:
-            co = co.replace(year=year + 1)
+        d1, mo1, y1, d2, mo2, y2 = int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4)), int(m.group(5)), int(m.group(6))
+        ci, co = date(y1, mo1, d1), date(y2, mo2, d2)
         return ci, co, (co - ci).days
 
-    # try "4 June to 6 June" / "4-6 June"
-    month_pattern = "|".join(sorted(_MONTHS.keys(), key=len, reverse=True))
+    # try "4 June 2026 to 6 June 2026"
+    m = re.match(
+        rf"(\d{{1,2}})\w*\s+({month_pattern})\s+(\d{{4}})\s*(?:to|[-–])\s*(\d{{1,2}})\w*\s+({month_pattern})\s+(\d{{4}})",
+        text,
+    )
+    if m:
+        d1, mo1, y1 = int(m.group(1)), _MONTHS[m.group(2)], int(m.group(3))
+        d2, mo2, y2 = int(m.group(4)), _MONTHS[m.group(5)], int(m.group(6))
+        ci, co = date(y1, mo1, d1), date(y2, mo2, d2)
+        return ci, co, (co - ci).days
+
+    # try "4 June 2026 to 6 June" (year only on first date)
+    m = re.match(
+        rf"(\d{{1,2}})\w*\s+({month_pattern})\s+(\d{{4}})\s*(?:to|[-–])\s*(\d{{1,2}})\w*\s+({month_pattern})",
+        text,
+    )
+    if m:
+        d1, mo1, y1 = int(m.group(1)), _MONTHS[m.group(2)], int(m.group(3))
+        d2, mo2 = int(m.group(4)), _MONTHS[m.group(5)]
+        ci, co = date(y1, mo1, d1), date(y1, mo2, d2)
+        if co <= ci:
+            co = co.replace(year=y1 + 1)
+        return ci, co, (co - ci).days
+
+    # try "4 June to 6 June" (no year — assume current year)
     m = re.match(
         rf"(\d{{1,2}})\w*\s+({month_pattern})\s*(?:to|[-–])\s*(\d{{1,2}})\w*\s+({month_pattern})",
         text,
     )
     if m:
         d1, mo1, d2, mo2 = int(m.group(1)), _MONTHS[m.group(2)], int(m.group(3)), _MONTHS[m.group(4)]
-        ci = date(year, mo1, d1)
-        co = date(year, mo2, d2)
+        ci = date(current_year, mo1, d1)
+        co = date(current_year, mo2, d2)
         if co <= ci:
-            co = co.replace(year=year + 1)
+            co = co.replace(year=current_year + 1)
         return ci, co, (co - ci).days
 
-    # try "4-6 June" (same month)
+    # try "4-6 June 2026" (same month)
+    m = re.match(rf"(\d{{1,2}})\w*\s*[-–]\s*(\d{{1,2}})\w*\s+({month_pattern})\s+(\d{{4}})", text)
+    if m:
+        d1, d2, mo, yr = int(m.group(1)), int(m.group(2)), _MONTHS[m.group(3)], int(m.group(4))
+        ci, co = date(yr, mo, d1), date(yr, mo, d2)
+        return ci, co, (co - ci).days
+
+    # try "4-6 June" (same month, no year)
     m = re.match(rf"(\d{{1,2}})\w*\s*[-–]\s*(\d{{1,2}})\w*\s+({month_pattern})", text)
     if m:
         d1, d2, mo = int(m.group(1)), int(m.group(2)), _MONTHS[m.group(3)]
-        ci = date(year, mo, d1)
-        co = date(year, mo, d2)
+        ci = date(current_year, mo, d1)
+        co = date(current_year, mo, d2)
         if co <= ci:
-            co = co.replace(year=year + 1)
+            co = co.replace(year=current_year + 1)
         return ci, co, (co - ci).days
 
     return None
@@ -125,7 +157,7 @@ def _welcome(phone: str):
         "Welcome to *Farmhouse Goa* 🌿\n\n"
         "I'm here to help you book a stay, add activities, and arrange transport.\n\n"
         "Please share your preferred *check-in and check-out dates*.\n"
-        "Example: _4 June to 6 June_",
+        "Example: _4 June 2026 to 6 June 2026_",
     )
     _set_state(phone, "ASK_DATES")
 
@@ -136,7 +168,7 @@ def _ask_dates(phone: str, content: str):
         whatsapp.send_text(
             phone,
             "Sorry, I couldn't understand those dates. Please try again.\n"
-            "Example: _4 June to 6 June_ or _4-6 June_",
+            "Example: _4 June 2026 to 6 June 2026_ or _4-6 June 2026_",
         )
         return
 
@@ -183,13 +215,20 @@ def _ask_room_type(phone: str, content: str):
         _check_and_show_availability(phone)
     elif content == "room_bulk":
         _session(phone)["room_type"] = "bulk"
-        whatsapp.send_buttons(
+        whatsapp.send_list(
             phone,
             "How many rooms do you need? (We have 4 rooms total)",
+            "Select Rooms",
             [
-                {"id": "rooms_1", "title": "1 Room"},
-                {"id": "rooms_2", "title": "2 Rooms"},
-                {"id": "rooms_3", "title": "3 Rooms"},
+                {
+                    "title": "Number of Rooms",
+                    "rows": [
+                        {"id": "rooms_1", "title": "1 Room"},
+                        {"id": "rooms_2", "title": "2 Rooms"},
+                        {"id": "rooms_3", "title": "3 Rooms"},
+                        {"id": "rooms_4", "title": "4 Rooms (All)"},
+                    ],
+                }
             ],
         )
         _set_state(phone, "ASK_ROOM_COUNT")
@@ -198,29 +237,11 @@ def _ask_room_type(phone: str, content: str):
 
 
 def _ask_room_count(phone: str, content: str):
-    room_map = {"rooms_1": 1, "rooms_2": 2, "rooms_3": 3}
-    if content == "rooms_4":
-        _session(phone)["rooms_count"] = 4
-        _check_and_show_availability(phone)
-        return
-
+    room_map = {"rooms_1": 1, "rooms_2": 2, "rooms_3": 3, "rooms_4": 4}
     count = room_map.get(content)
     if count is None:
-        whatsapp.send_text(phone, "Please select the number of rooms using the buttons.")
+        whatsapp.send_text(phone, "Please select the number of rooms from the list.")
         return
-
-    # If 3 was selected, offer 4 as well via a follow-up button
-    if content == "rooms_3":
-        whatsapp.send_buttons(
-            phone,
-            "Do you need 3 or 4 rooms?",
-            [
-                {"id": "rooms_3", "title": "3 Rooms"},
-                {"id": "rooms_4", "title": "4 Rooms (All)"},
-            ],
-        )
-        return
-
     _session(phone)["rooms_count"] = count
     _check_and_show_availability(phone)
 
