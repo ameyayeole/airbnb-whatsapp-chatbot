@@ -9,7 +9,9 @@ _HEADERS = {
 
 
 def _post(payload: dict):
-    requests.post(_BASE, json=payload, headers=_HEADERS, timeout=10)
+    r = requests.post(_BASE, json=payload, headers=_HEADERS, timeout=10)
+    if not r.ok:
+        print(f"WHATSAPP API ERROR {r.status_code}: {r.text}")
 
 
 def send_text(phone: str, message: str):
