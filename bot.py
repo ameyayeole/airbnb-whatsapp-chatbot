@@ -5,6 +5,8 @@ import database
 import pricing
 import config
 
+MAX_GUESTS_PER_ROOM = 3
+
 # ── session store ──────────────────────────────────────────────────────────────
 SESSIONS: dict[str, dict] = {}
 
@@ -152,46 +154,22 @@ def _parse_date_range(text: str):
 # ── state handlers ─────────────────────────────────────────────────────────────
 
 def _welcome(phone: str):
+    link = f"{config.BASE_URL}/select-dates?phone={phone}"
     whatsapp.send_text(
         phone,
         "Welcome to *Farmhouse Goa* 🌿\n\n"
         "I'm here to help you book a stay, add activities, and arrange transport.\n\n"
-        "Please share your preferred *check-in and check-out dates*.\n"
-        "Example: _4 June 2026 to 6 June 2026_",
+        f"Please select your check-in and check-out dates:\n👉 {link}",
     )
     _set_state(phone, "ASK_DATES")
 
 
 def _ask_dates(phone: str, content: str):
-    result = _parse_date_range(content)
-    if not result:
-        whatsapp.send_text(
-            phone,
-            "Sorry, I couldn't understand those dates. Please try again.\n"
-            "Example: _4 June 2026 to 6 June 2026_ or _4-6 June 2026_",
-        )
-        return
-
-    ci, co, nights = result
-    if nights <= 0:
-        whatsapp.send_text(phone, "Check-out must be after check-in. Please try again.")
-        return
-
-    s = _session(phone)
-    s["check_in"] = ci.isoformat()
-    s["check_out"] = co.isoformat()
-    s["nights"] = nights
-
-    whatsapp.send_buttons(
+    link = f"{config.BASE_URL}/select-dates?phone={phone}"
+    whatsapp.send_text(
         phone,
-        f"Got it! *{ci.strftime('%d %b %Y')} → {co.strftime('%d %b %Y')}* ({nights} night{'s' if nights > 1 else ''}).\n\n"
-        "What type of booking are you looking for?",
-        [
-            {"id": "room_couple", "title": "Couple Room"},
-            {"id": "room_bulk",   "title": "Bulk Booking"},
-        ],
+        f"Please use the link below to select your dates:\n👉 {link}",
     )
-    _set_state(phone, "ASK_ROOM_TYPE")
 
 
 def _ask_room_type(phone: str, content: str):
@@ -496,6 +474,31 @@ def _confirm_booking(phone: str, content: str):
     )
 
     del SESSIONS[phone]
+
+
+# ── external date injection (from calendar web page) ──────────────────────────
+
+def inject_dates(phone: str, check_in: str, check_out: str):
+    from datetime import date as _date
+    ci = _date.fromisoformat(check_in)
+    co = _date.fromisoformat(check_out)
+    nights = (co - ci).days
+
+    s = _session(phone)
+    s["check_in"]  = check_in
+    s["check_out"] = check_out
+    s["nights"]    = nights
+
+    whatsapp.send_buttons(
+        phone,
+        f"Dates selected! ✅\n*{ci.strftime('%d %b %Y')} → {co.strftime('%d %b %Y')}* ({nights} night{'s' if nights > 1 else ''}).\n\n"
+        "What type of booking are you looking for?",
+        [
+            {"id": "room_couple", "title": "Couple Room"},
+            {"id": "room_bulk",   "title": "Bulk Booking"},
+        ],
+    )
+    _set_state(phone, "ASK_ROOM_TYPE")
 
 
 # ── main dispatcher ────────────────────────────────────────────────────────────
