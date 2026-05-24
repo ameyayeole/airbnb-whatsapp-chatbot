@@ -154,22 +154,18 @@ def _parse_date_range(text: str):
 # ── state handlers ─────────────────────────────────────────────────────────────
 
 def _welcome(phone: str):
-    link = f"{config.BASE_URL}/select-dates?phone={phone}"
     whatsapp.send_text(
         phone,
         "Welcome to *Farmhouse Goa* 🌿\n\n"
-        "I'm here to help you book a stay, add activities, and arrange transport.\n\n"
-        f"Please select your check-in and check-out dates:\n👉 {link}",
+        "I'm here to help you book a stay, add activities, and arrange transport.",
     )
+    whatsapp.send_flow(phone)
     _set_state(phone, "ASK_DATES")
 
 
 def _ask_dates(phone: str, content: str):
-    link = f"{config.BASE_URL}/select-dates?phone={phone}"
-    whatsapp.send_text(
-        phone,
-        f"Please use the link below to select your dates:\n👉 {link}",
-    )
+    whatsapp.send_text(phone, "Please select your dates using the button below.")
+    whatsapp.send_flow(phone)
 
 
 def _ask_room_type(phone: str, content: str):
@@ -517,9 +513,17 @@ _HANDLERS = {
 }
 
 
-def handle_message(phone: str, msg_type: str, content: str):
+def handle_message(phone: str, msg_type: str, content):
+    # handle flow date picker response
+    if msg_type == "flow_reply" and isinstance(content, dict):
+        check_in  = content.get("check_in")
+        check_out = content.get("check_out")
+        if check_in and check_out:
+            inject_dates(phone, check_in, check_out)
+        return
+
     # "hi" / "hello" resets session
-    if content.lower() in ("hi", "hello", "hey", "start"):
+    if isinstance(content, str) and content.lower() in ("hi", "hello", "hey", "start"):
         SESSIONS.pop(phone, None)
 
     s = _session(phone)

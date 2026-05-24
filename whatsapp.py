@@ -62,11 +62,37 @@ def send_list(phone: str, body: str, button_label: str, sections: list[dict]):
     })
 
 
+def send_flow(phone: str):
+    import json as _json
+    _post({
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": phone,
+        "type": "interactive",
+        "interactive": {
+            "type": "flow",
+            "header": {"type": "text", "text": "Farmhouse Goa 🌿"},
+            "body": {"text": "Please select your check-in and check-out dates."},
+            "action": {
+                "name": "flow",
+                "parameters": {
+                    "flow_message_version": "3",
+                    "flow_token": phone,
+                    "flow_id": config.FLOW_ID,
+                    "flow_cta": "Select Dates 📅",
+                    "flow_action": "navigate",
+                    "flow_action_payload": {"screen": "SELECT_DATES"},
+                    "mode": config.FLOW_MODE,
+                },
+            },
+        },
+    })
+
+
 def parse_incoming(payload: dict) -> dict | None:
     """
-    Returns {"phone": str, "msg_type": str, "content": str} or None if not a user message.
-    msg_type: "text" | "button_reply" | "list_reply"
-    content: the text, button id, or list row id
+    Returns {"phone": str, "msg_type": str, "content": str|dict} or None.
+    msg_type: "text" | "button_reply" | "list_reply" | "flow_reply"
     """
     try:
         entry = payload["entry"][0]
@@ -95,5 +121,9 @@ def parse_incoming(payload: dict) -> dict | None:
                 "msg_type": "list_reply",
                 "content": msg["interactive"]["list_reply"]["id"],
             }
+        if itype == "nfm_reply":
+            import json as _json
+            response = _json.loads(msg["interactive"]["nfm_reply"]["response_json"])
+            return {"phone": phone, "msg_type": "flow_reply", "content": response}
 
     return None
