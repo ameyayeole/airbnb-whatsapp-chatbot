@@ -1,18 +1,19 @@
 """
-bot.py — Farm-stay WhatsApp chatbot
-Two parallel flows:
-  • BOOKING  — full guest-profiling → rooms → food → activities → transport → confirm
-  • INFO     — property FAQ branch accessible anytime via keyword or menu
+bot.py — Mondkar Farm Stay WhatsApp Chatbot
+Character: Mondy 🤖
+
+Flow A — Explore the Farm  (info / FAQ)
+Flow B — Book a Stay       (8-step guided booking)
 """
 import re
-from datetime import datetime, date
+from datetime import date, timedelta
 import whatsapp
 import database
 import pricing
 import config
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# SESSION STORE
+# SESSION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 SESSIONS: dict = {}
@@ -21,39 +22,49 @@ SESSIONS: dict = {}
 def _session(phone: str) -> dict:
     if phone not in SESSIONS:
         SESSIONS[phone] = {
-            "state":              "WELCOME",
+            "state": "WELCOME",
             # guest profile
-            "guest_name":         None,
-            "client_type":        None,
-            "interests":          None,
-            "arrival_medium":     None,
-            # dates / rooms
-            "check_in":           None,
-            "check_out":          None,
-            "nights":             None,
-            "room_type":          None,
-            "rooms_count":        1,
-            "pax":                None,
+            "guest_name":        None,
+            "email":             None,
+            "adults":            None,
+            "children":          None,
+            # stay
+            "check_in":          None,
+            "check_out":         None,
+            "nights":            None,
+            "special_requests":  None,
+            # room
+            "room_type":         None,
             # food
-            "food_preferences":   None,
-            "meal_plan":          "No Meals",
-            "meal_location":      "In-house",
-            # activities / transport
-            "activities":         [],
-            "transport":          None,
-            "internal_transport": None,
+            "food_preference":   None,
+            "veg_count":         0,
+            "nv_count":          0,
+            "meal_plan_d1":      "No Meals",
+            "meal_plan_sub":     "No Meals",
+            # arrival
+            "arrival_mode":      None,
+            "pickup_point":      None,
+            "vehicle_type":      None,
+            # activities
+            "activities_d1":     [],
+            "activities_d2":     [],
             # internal
-            "_totals":            None,
+            "_totals":           None,
         }
     return SESSIONS[phone]
 
 
-def _set_state(phone: str, state: str):
+def _set(phone: str, key: str, value):
+    SESSIONS[phone][key] = value
+
+
+def _state(phone: str, state: str):
     SESSIONS[phone]["state"] = state
 
 
-def _s(phone: str, key: str, value):
-    SESSIONS[phone][key] = value
+def _pax(phone: str) -> int:
+    s = _session(phone)
+    return (s["adults"] or 0) + (s["children"] or 0)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -61,871 +72,811 @@ def _s(phone: str, key: str, value):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _MONTHS = {
-    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-    "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
-    "january": 1, "february": 2, "march": 3, "april": 4, "june": 6,
-    "july": 7, "august": 8, "september": 9, "october": 10,
-    "november": 11, "december": 12,
+    "jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,
+    "jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12,
+    "january":1,"february":2,"march":3,"april":4,"june":6,
+    "july":7,"august":8,"september":9,"october":10,"november":11,"december":12,
 }
 
 
 def _parse_date_range(text: str):
+    """Returns (check_in, check_out, nights) or None."""
     text = text.lower().strip()
-    yr = date.today().year
-    mp = "|".join(sorted(_MONTHS.keys(), key=len, reverse=True))
+    yr   = date.today().year
+    mp   = "|".join(sorted(_MONTHS.keys(), key=len, reverse=True))
 
-    # DD/MM/YYYY to DD/MM/YYYY
-    m = re.match(
-        r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\s*(?:to|[-–])\s*(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})", text)
-    if m:
-        ci = date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
-        co = date(int(m.group(6)), int(m.group(5)), int(m.group(4)))
-        return ci, co, (co - ci).days
+    patterns = [
+        # DD/MM/YYYY to DD/MM/YYYY  → groups: (d1,m1,y1, d2,m2,y2)
+        (r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\s*(?:to|[-–])\s*(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})",
+         lambda m: (date(int(m[2]),int(m[1]),int(m[0])), date(int(m[5]),int(m[4]),int(m[3])))),
+        # 4 June 2026 to 6 June 2026  → groups: (d1,mon1,y1, d2,mon2,y2)
+        (rf"(\d{{1,2}})\w*\s+({mp})\s+(\d{{4}})\s*(?:to|[-–])\s*(\d{{1,2}})\w*\s+({mp})\s+(\d{{4}})",
+         lambda m: (date(int(m[2]),_MONTHS[m[1]],int(m[0])), date(int(m[5]),_MONTHS[m[4]],int(m[3])))),
+        # 4 June 2026 to 6 June (same year)  → groups: (d1,mon1,y1, d2,mon2)
+        (rf"(\d{{1,2}})\w*\s+({mp})\s+(\d{{4}})\s*(?:to|[-–])\s*(\d{{1,2}})\w*\s+({mp})",
+         lambda m: (date(int(m[2]),_MONTHS[m[1]],int(m[0])), date(int(m[2]),_MONTHS[m[4]],int(m[3])))),
+        # 4 June to 6 June (current year)  → groups: (d1,mon1, d2,mon2)
+        (rf"(\d{{1,2}})\w*\s+({mp})\s*(?:to|[-–])\s*(\d{{1,2}})\w*\s+({mp})",
+         lambda m: (date(yr,_MONTHS[m[1]],int(m[0])), date(yr,_MONTHS[m[3]],int(m[2])))),
+        # 4-6 June 2026  → groups: (d1,d2,mon,y)
+        (rf"(\d{{1,2}})\w*\s*[-–]\s*(\d{{1,2}})\w*\s+({mp})\s+(\d{{4}})",
+         lambda m: (date(int(m[3]),_MONTHS[m[2]],int(m[0])), date(int(m[3]),_MONTHS[m[2]],int(m[1])))),
+        # 4-6 June (current year)  → groups: (d1,d2,mon)
+        (rf"(\d{{1,2}})\w*\s*[-–]\s*(\d{{1,2}})\w*\s+({mp})",
+         lambda m: (date(yr,_MONTHS[m[2]],int(m[0])), date(yr,_MONTHS[m[2]],int(m[1])))),
+    ]
+    for pat, fn in patterns:
+        m = re.match(pat, text)
+        if m:
+            try:
+                ci, co = fn(m.groups())
+                if co <= ci:
+                    co = co.replace(year=co.year + 1)
+                return ci, co, (co - ci).days
+            except Exception:
+                continue
+    return None
 
-    # "4 June 2026 to 6 June 2026"
-    m = re.match(rf"(\d{{1,2}})\w*\s+({mp})\s+(\d{{4}})\s*(?:to|[-–])\s*(\d{{1,2}})\w*\s+({mp})\s+(\d{{4}})", text)
-    if m:
-        ci = date(int(m.group(3)), _MONTHS[m.group(2)], int(m.group(1)))
-        co = date(int(m.group(6)), _MONTHS[m.group(5)], int(m.group(4)))
-        return ci, co, (co - ci).days
 
-    # "4 June 2026 to 6 June"
-    m = re.match(rf"(\d{{1,2}})\w*\s+({mp})\s+(\d{{4}})\s*(?:to|[-–])\s*(\d{{1,2}})\w*\s+({mp})", text)
-    if m:
-        y = int(m.group(3))
-        ci = date(y, _MONTHS[m.group(2)], int(m.group(1)))
-        co = date(y, _MONTHS[m.group(5)], int(m.group(4)))
-        if co <= ci:
-            co = co.replace(year=y + 1)
-        return ci, co, (co - ci).days
+def _parse_single_date(text: str) -> "date | None":
+    """Parse a single date like '6 June 2026' or '06/06/2026'."""
+    text = text.lower().strip()
+    yr   = date.today().year
+    mp   = "|".join(sorted(_MONTHS.keys(), key=len, reverse=True))
 
-    # "4 June to 6 June"
-    m = re.match(rf"(\d{{1,2}})\w*\s+({mp})\s*(?:to|[-–])\s*(\d{{1,2}})\w*\s+({mp})", text)
+    m = re.match(r"(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})", text)
     if m:
-        ci = date(yr, _MONTHS[m.group(2)], int(m.group(1)))
-        co = date(yr, _MONTHS[m.group(4)], int(m.group(3)))
-        if co <= ci:
-            co = co.replace(year=yr + 1)
-        return ci, co, (co - ci).days
+        return date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
 
-    # "4-6 June 2026"
-    m = re.match(rf"(\d{{1,2}})\w*\s*[-–]\s*(\d{{1,2}})\w*\s+({mp})\s+(\d{{4}})", text)
+    m = re.match(rf"(\d{{1,2}})\w*\s+({mp})\s+(\d{{4}})", text)
     if m:
-        y, mo = int(m.group(4)), _MONTHS[m.group(3)]
-        ci, co = date(y, mo, int(m.group(1))), date(y, mo, int(m.group(2)))
-        return ci, co, (co - ci).days
+        return date(int(m.group(3)), _MONTHS[m.group(2)], int(m.group(1)))
 
-    # "4-6 June"
-    m = re.match(rf"(\d{{1,2}})\w*\s*[-–]\s*(\d{{1,2}})\w*\s+({mp})", text)
+    m = re.match(rf"(\d{{1,2}})\w*\s+({mp})", text)
     if m:
-        mo = _MONTHS[m.group(3)]
-        ci = date(yr, mo, int(m.group(1)))
-        co = date(yr, mo, int(m.group(2)))
-        if co <= ci:
-            co = co.replace(year=yr + 1)
-        return ci, co, (co - ci).days
+        return date(yr, _MONTHS[m.group(2)], int(m.group(1)))
 
     return None
+
+
+def _parse_nights(text: str) -> "int | None":
+    """Parse '2 nights' → 2."""
+    m = re.search(r"(\d+)\s*nights?", text.lower())
+    return int(m.group(1)) if m else None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ── ENTRY ─────────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _welcome(phone: str):
+    whatsapp.send_text(
+        phone,
+        f"🌾 *Welcome to {config.PROPERTY_NAME}!*\n\n"
+        f"I'm *{config.BOT_NAME}* 🤖, your farm concierge.\n\n"
+        "May I know your *name* to get started?",
+    )
+    _state(phone, "ASK_NAME")
+
+
+def _ask_name(phone: str, content: str):
+    name = content.strip().title()
+    if len(name) < 2:
+        whatsapp.send_text(phone, "Please share your name so I can assist you better 😊")
+        return
+    _set(phone, "guest_name", name)
+    whatsapp.send_buttons(
+        phone,
+        f"Great to meet you, *{name}*! 🙏\n\nWhat would you like to do today?",
+        [
+            {"id": "path_explore", "title": "Explore the Farm"},
+            {"id": "path_book",    "title": "Book a Stay"},
+        ],
+    )
+    _state(phone, "ASK_PATH")
+
+
+def _ask_path(phone: str, content: str):
+    if content == "path_explore":
+        _show_info_menu(phone)
+    elif content == "path_book":
+        _start_booking(phone)
+    else:
+        _welcome(phone)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ── BOOKING FLOW ──────────────────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _welcome(phone: str):
-    whatsapp.send_buttons(
-        phone,
-        f"🌿 *Welcome to {config.PROPERTY_NAME}!*\n\n"
-        "A peaceful farm escape in the heart of Goa — fresh food, open fields, "
-        "and unforgettable experiences.\n\n"
-        "How can I help you today?",
-        [
-            {"id": "main_book", "title": "Book a Stay"},
-            {"id": "main_info", "title": "Property Info"},
-        ],
-    )
-    _set_state(phone, "MAIN_MENU")
-
-
-def _main_menu(phone: str, content: str):
-    if content == "main_book":
-        whatsapp.send_text(
-            phone,
-            "Wonderful! Let's get your booking started. 😊\n\nMay I have your *name*?",
-        )
-        _set_state(phone, "ASK_NAME")
-    elif content == "main_info":
-        _show_info_menu(phone)
-    else:
-        _welcome(phone)
-
-
-# ── Guest profiling ───────────────────────────────────────────────────────────
-
-def _ask_name(phone: str, content: str):
-    name = content.strip().title()
-    if len(name) < 2:
-        whatsapp.send_text(phone, "Please share your name so I can address you properly 😊")
-        return
-    _s(phone, "guest_name", name)
-    whatsapp.send_list(
-        phone,
-        f"Great to meet you, *{name}*! 🙏\n\nWhat best describes your group?",
-        "Select Type",
-        [{"title": "Group Type", "rows": [
-            {"id": "ct_family",     "title": "Family",           "description": "With kids / elders"},
-            {"id": "ct_friends",    "title": "Friends Group",    "description": "Friends trip"},
-            {"id": "ct_business",   "title": "Business Trip",    "description": "Solo / corporate stay"},
-            {"id": "ct_conference", "title": "Conference/Event", "description": "Retreat, workshop, event"},
-            {"id": "ct_bikers",     "title": "Biking Group",     "description": "Cycling / motorbike tour"},
-            {"id": "ct_birdwatch",  "title": "Birdwatching",     "description": "Nature & bird photography"},
-            {"id": "ct_wellness",   "title": "Health/Wellness",  "description": "Yoga / detox / wellness"},
-        ]}],
-    )
-    _set_state(phone, "ASK_CLIENT_TYPE")
-
-
-_CLIENT_TYPE_MAP = {
-    "ct_family":     "Family",
-    "ct_friends":    "Friends Group",
-    "ct_business":   "Business Trip",
-    "ct_conference": "Conference / Event",
-    "ct_bikers":     "Biking Group",
-    "ct_birdwatch":  "Birdwatching Group",
-    "ct_wellness":   "Health / Wellness Group",
-}
-
-
-def _ask_client_type(phone: str, content: str):
-    ct = _CLIENT_TYPE_MAP.get(content)
-    if not ct:
-        whatsapp.send_text(phone, "Please select your group type from the list.")
-        return
-    _s(phone, "client_type", ct)
-    whatsapp.send_list(
-        phone,
-        f"*{ct}* — great! 🌟\n\nWhat is the primary interest for this visit?",
-        "Select Interest",
-        [{"title": "Primary Interest", "rows": [
-            {"id": "int_nature",    "title": "Nature & Wildlife",  "description": "Farm walks, birds, wildlife"},
-            {"id": "int_beach",     "title": "Beach & Water",      "description": "Beach, kayaking, watersports"},
-            {"id": "int_culture",   "title": "Culture & Heritage", "description": "Temples, churches, local food"},
-            {"id": "int_holistic",  "title": "Holistic & Wellness","description": "Yoga, meditation, organic food"},
-            {"id": "int_festival",  "title": "Festival & Party",   "description": "Birthday, anniversary, event"},
-            {"id": "int_adventure", "title": "Adventure & Outdoor","description": "Hiking, cycling, extreme sports"},
-            {"id": "int_solitude",  "title": "Quiet Getaway",      "description": "Relax, read, recharge"},
-        ]}],
-    )
-    _set_state(phone, "ASK_INTERESTS")
-
-
-_INTEREST_MAP = {
-    "int_nature":    "Nature & Wildlife",
-    "int_beach":     "Beach & Water Sports",
-    "int_culture":   "Culture & Heritage",
-    "int_holistic":  "Holistic & Wellness",
-    "int_festival":  "Festival & Celebration",
-    "int_adventure": "Adventure & Outdoor",
-    "int_solitude":  "Quiet Getaway",
-}
-
-
-def _ask_interests(phone: str, content: str):
-    interest = _INTEREST_MAP.get(content)
-    if not interest:
-        whatsapp.send_text(phone, "Please select your primary interest from the list.")
-        return
-    _s(phone, "interests", interest)
-    whatsapp.send_list(
-        phone,
-        f"*{interest}* — sounds wonderful! 🙌\n\nHow will you be arriving?",
-        "Select Mode",
-        [{"title": "Mode of Arrival", "rows": [
-            {"id": "arr_selfcar",     "title": "Self-Drive (Own Car)",  "description": "Arriving by personal vehicle"},
-            {"id": "arr_train",       "title": "Train",                 "description": "Kudal / Kankawali station"},
-            {"id": "arr_flight_mopa", "title": "Flight — Mopa Airport", "description": "Sindhudurg (North Goa)"},
-            {"id": "arr_flight_goa",  "title": "Flight — Dabolim",      "description": "Goa South (old airport)"},
-            {"id": "arr_bus",         "title": "Bus / Public Transport","description": "State or private bus"},
-        ]}],
-    )
-    _set_state(phone, "ASK_ARRIVAL_MEDIUM")
-
-
-_ARRIVAL_MAP = {
-    "arr_selfcar":     "Self-Drive",
-    "arr_train":       "Train",
-    "arr_flight_mopa": "Flight — Mopa Airport",
-    "arr_flight_goa":  "Flight — Dabolim Airport",
-    "arr_bus":         "Bus",
-}
-
-
-def _ask_arrival_medium(phone: str, content: str):
-    medium = _ARRIVAL_MAP.get(content)
-    if not medium:
-        whatsapp.send_text(phone, "Please select how you'll be arriving.")
-        return
-    _s(phone, "arrival_medium", medium)
+def _start_booking(phone: str):
+    s = _session(phone)
     whatsapp.send_text(
         phone,
-        "Perfect! Now please share your *check-in and check-out dates*. 📅\n\n"
-        "Examples:\n"
-        "• _4 June 2026 to 6 June 2026_\n"
-        "• _4-6 June 2026_\n"
-        "• _04/06/2026 to 06/06/2026_",
+        f"Let's get your booking started, *{s['guest_name']}*! 🎉\n\n"
+        "What's your *email address*? _(Type 'skip' to skip)_",
     )
-    _set_state(phone, "ASK_DATES")
+    _state(phone, "ASK_EMAIL")
 
 
-# ── Dates → Room type → Guests ────────────────────────────────────────────────
+# ── Step 1: Guest Details ─────────────────────────────────────────────────────
 
-def _ask_dates(phone: str, content: str):
-    result = _parse_date_range(content)
-    if not result:
-        whatsapp.send_text(
-            phone,
-            "Sorry, I couldn't read those dates. Please try again.\n"
-            "Example: _4 June 2026 to 6 June 2026_",
-        )
+def _ask_email(phone: str, content: str):
+    email = None if content.lower().strip() == "skip" else content.strip()
+    _set(phone, "email", email)
+    whatsapp.send_text(phone, "How many *adults* will be staying?\nEnter a number:")
+    _state(phone, "ASK_ADULTS")
+
+
+def _ask_adults(phone: str, content: str):
+    if not content.strip().isdigit() or int(content) < 1:
+        whatsapp.send_text(phone, "Please enter a valid number of adults (e.g. 2).")
         return
-    ci, co, nights = result
-    if nights <= 0:
-        whatsapp.send_text(phone, "Check-out must be after check-in. Please try again.")
+    _set(phone, "adults", int(content.strip()))
+    whatsapp.send_text(phone, "How many *children* will be coming?\n_(Enter 0 if none)_")
+    _state(phone, "ASK_CHILDREN")
+
+
+def _ask_children(phone: str, content: str):
+    if not content.strip().isdigit():
+        whatsapp.send_text(phone, "Please enter 0 or a valid number of children.")
+        return
+    _set(phone, "children", int(content.strip()))
+    whatsapp.send_text(
+        phone,
+        "What is your *check-in date*? 📅\n\n"
+        "Examples:\n"
+        "• _10 June 2026_\n"
+        "• _10/06/2026_",
+    )
+    _state(phone, "ASK_CHECKIN")
+
+
+# ── Step 2: Stay Dates ────────────────────────────────────────────────────────
+
+def _ask_checkin(phone: str, content: str):
+    # Try as full range first
+    result = _parse_date_range(content)
+    if result:
+        ci, co, nights = result
+        if nights <= 0:
+            whatsapp.send_text(phone, "Check-out must be after check-in. Please try again.")
+            return
+        if ci < date.today():
+            whatsapp.send_text(phone, "Check-in cannot be in the past. Please try again.")
+            return
+        _set(phone, "check_in",  ci.isoformat())
+        _set(phone, "check_out", co.isoformat())
+        _set(phone, "nights",    nights)
+        _ask_special_requests(phone)
+        return
+
+    # Single date
+    ci = _parse_single_date(content)
+    if not ci:
+        whatsapp.send_text(phone, "Sorry, I couldn't read that date.\nExample: _10 June 2026_")
         return
     if ci < date.today():
-        whatsapp.send_text(phone, "Check-in date cannot be in the past. Please try again.")
+        whatsapp.send_text(phone, "Check-in cannot be in the past. Please try again.")
+        return
+    _set(phone, "check_in", ci.isoformat())
+    whatsapp.send_text(
+        phone,
+        f"Check-in: *{ci.strftime('%d %b %Y')}* ✅\n\n"
+        "What is your *check-out date*?\n"
+        "_(Or type e.g. '2 nights')_",
+    )
+    _state(phone, "ASK_CHECKOUT")
+
+
+def _ask_checkout(phone: str, content: str):
+    s  = _session(phone)
+    ci = date.fromisoformat(s["check_in"])
+
+    # "N nights"
+    nights = _parse_nights(content)
+    if nights and nights > 0:
+        co = ci + timedelta(days=nights)
+        _set(phone, "check_out", co.isoformat())
+        _set(phone, "nights",    nights)
+        _ask_special_requests(phone)
         return
 
-    s = _session(phone)
-    s["check_in"]  = ci.isoformat()
-    s["check_out"] = co.isoformat()
-    s["nights"]    = nights
+    # Single date
+    co = _parse_single_date(content)
+    if not co:
+        whatsapp.send_text(phone, "Sorry, I couldn't read that date.\nExample: _12 June 2026_ or _2 nights_")
+        return
+    if co <= ci:
+        whatsapp.send_text(phone, "Check-out must be after check-in. Please try again.")
+        return
+    nights = (co - ci).days
+    _set(phone, "check_out", co.isoformat())
+    _set(phone, "nights",    nights)
+    _ask_special_requests(phone)
 
-    season = pricing.seasonal_label(ci.month)
+
+def _ask_special_requests(phone: str):
+    s = _session(phone)
+    ci = date.fromisoformat(s["check_in"])
+    co = date.fromisoformat(s["check_out"])
+    whatsapp.send_text(
+        phone,
+        f"*{ci.strftime('%d %b')} → {co.strftime('%d %b %Y')}* "
+        f"({s['nights']} night{'s' if s['nights'] > 1 else ''}) ✅\n\n"
+        "Check-in: *{ci}* | Check-out: *{co}*\n\n"
+        "Do you have any *special requests*?\n"
+        "_(e.g. anniversary setup, early check-in, dietary needs — or type 'none')_".format(ci=config.CHECK_IN_TIME, co=config.CHECK_OUT_TIME),
+    )
+    _state(phone, "ASK_SPECIAL_REQUESTS")
+
+
+def _ask_special_requests_input(phone: str, content: str):
+    req = None if content.lower().strip() == "none" else content.strip()
+    _set(phone, "special_requests", req)
+
+    # ── Step 3: Room Type ─────────────────────────────────────────────────────
     whatsapp.send_buttons(
         phone,
-        f"✅ *{ci.strftime('%d %b %Y')} → {co.strftime('%d %b %Y')}*"
-        f" ({nights} night{'s' if nights > 1 else ''})\n_{season}_\n\n"
-        "What type of booking do you need?",
+        "Which room type would you like? 🏡\n\n"
+        "• *Family Suite* — private, up to 4 guests\n"
+        "• *Dormitory Stay* — shared-style, up to 6 guests",
         [
-            {"id": "room_couple", "title": "Couple / Single Room"},
-            {"id": "room_bulk",   "title": "Bulk Booking"},
+            {"id": "room_suite", "title": "Family Suite"},
+            {"id": "room_dorm",  "title": "Dormitory Stay"},
         ],
     )
-    _set_state(phone, "ASK_ROOM_TYPE")
+    _state(phone, "ASK_ROOM_TYPE")
 
 
 def _ask_room_type(phone: str, content: str):
-    if content == "room_couple":
-        _s(phone, "room_type", "couple")
-        _s(phone, "rooms_count", 1)
-        whatsapp.send_text(phone, "How many guests? *(max 3 for a single room)*\nEnter a number:")
-        _set_state(phone, "ASK_GUESTS")
-    elif content == "room_bulk":
-        _s(phone, "room_type", "bulk")
-        whatsapp.send_list(
-            phone,
-            "How many rooms do you need?\n*(4 rooms total; 3 guests max per room)*",
-            "Select Rooms",
-            [{"title": "Number of Rooms", "rows": [
-                {"id": "rooms_2", "title": "2 Rooms", "description": "Up to 6 guests"},
-                {"id": "rooms_3", "title": "3 Rooms", "description": "Up to 9 guests"},
-                {"id": "rooms_4", "title": "4 Rooms (Entire Property)", "description": "Up to 12 guests"},
-            ]}],
-        )
-        _set_state(phone, "ASK_ROOM_COUNT")
-    else:
-        whatsapp.send_text(phone, "Please tap one of the options above.")
-
-
-def _ask_room_count(phone: str, content: str):
-    room_map = {"rooms_2": 2, "rooms_3": 3, "rooms_4": 4}
-    count = room_map.get(content)
-    if count is None:
-        whatsapp.send_text(phone, "Please select number of rooms from the list.")
+    room_map = {"room_suite": "Family Suite", "room_dorm": "Dormitory Stay"}
+    room = room_map.get(content)
+    if not room:
+        whatsapp.send_text(phone, "Please tap one of the room options above.")
         return
-    _s(phone, "rooms_count", count)
-    whatsapp.send_text(
-        phone,
-        f"*{count} room(s)* selected. How many guests in total? *(max {count * 3})*\nEnter a number:",
-    )
-    _set_state(phone, "ASK_GUESTS")
 
+    s    = _session(phone)
+    pax  = _pax(phone)
+    limit = pricing.ROOM_PAX_LIMIT.get(room, 6)
 
-def _ask_guests(phone: str, content: str):
-    if not content.isdigit() or int(content) < 1:
-        whatsapp.send_text(phone, "Please enter a valid number of guests (e.g. 4).")
-        return
-    s = _session(phone)
-    pax = int(content)
-    max_allowed = s["rooms_count"] * 3
-    if pax > max_allowed:
+    if pax > limit:
         whatsapp.send_text(
             phone,
-            f"Maximum *{max_allowed} guests* for {s['rooms_count']} room(s). "
-            f"Please enter up to {max_allowed}:",
+            f"The *{room}* accommodates up to *{limit} guests*. "
+            f"Your group has *{pax}*.\n\nPlease select a different room or adjust guest count.",
         )
         return
-    _s(phone, "pax", pax)
-    _check_availability_and_proceed(phone)
 
+    _set(phone, "room_type", room)
 
-def _check_availability_and_proceed(phone: str):
-    s = _session(phone)
-    if not database.check_availability(s["check_in"], s["check_out"], s["rooms_count"]):
+    # Check availability
+    if not database.check_availability(s["check_in"], s["check_out"], room):
         whatsapp.send_buttons(
             phone,
-            f"😔 Sorry! *{s['rooms_count']} room(s)* are not available for "
-            f"*{s['check_in']} → {s['check_out']}*.\n\nWould you like to try different dates?",
+            f"😔 Sorry! *{room}* is not available for *{s['check_in']} → {s['check_out']}*.\n\n"
+            "Would you like to try different dates or the other room type?",
             [
-                {"id": "retry_dates",  "title": "Try Different Dates"},
-                {"id": "main_restart", "title": "Start Over"},
+                {"id": "retry_dates", "title": "Different Dates"},
+                {"id": "retry_room",  "title": "Other Room Type"},
             ],
         )
-        _set_state(phone, "AVAILABILITY_RETRY")
+        _state(phone, "ROOM_UNAVAILABLE")
         return
 
+    # ── Step 4: Meal Planning ─────────────────────────────────────────────────
     whatsapp.send_list(
         phone,
-        "Rooms are *available* ✅\n\nWhat are your *food preferences*?",
-        "Select Preference",
+        f"*{room}* is available ✅\n\n"
+        "What are your *food preferences*?",
+        "Select",
         [{"title": "Dietary Preference", "rows": [
-            {"id": "food_veg",    "title": "Vegetarian",     "description": "Veg only"},
-            {"id": "food_nonveg", "title": "Non-Vegetarian", "description": "Meat, fish, eggs"},
-            {"id": "food_mix",    "title": "Mixed",          "description": "Veg + Non-Veg"},
-            {"id": "food_jain",   "title": "Jain",           "description": "No root vegetables"},
-            {"id": "food_any",    "title": "No Preference",  "description": "Any food is fine"},
+            {"id": "food_veg",    "title": "Vegetarian",    "description": "All Veg meals"},
+            {"id": "food_nv",     "title": "Non-Vegetarian","description": "Includes meat, fish, eggs"},
+            {"id": "food_mixed",  "title": "Mixed Group",   "description": "Some Veg, some Non-Veg"},
         ]}],
     )
-    _set_state(phone, "ASK_FOOD_PREFS")
+    _state(phone, "ASK_FOOD_PREF")
 
 
-def _availability_retry(phone: str, content: str):
+def _room_unavailable(phone: str, content: str):
     if content == "retry_dates":
-        whatsapp.send_text(
-            phone,
-            "Please share your new check-in and check-out dates:\n"
-            "Example: _10 July 2026 to 13 July 2026_",
-        )
-        _set_state(phone, "ASK_DATES")
+        whatsapp.send_text(phone, "Please share new check-in & check-out dates:")
+        _state(phone, "ASK_CHECKIN")
+    elif content == "retry_room":
+        other = "Dormitory Stay" if _session(phone).get("room_type") == "Family Suite" else "Family Suite"
+        s = _session(phone)
+        limit = pricing.ROOM_PAX_LIMIT.get(other, 6)
+        pax = _pax(phone)
+        if pax > limit:
+            whatsapp.send_text(phone, f"The *{other}* also has a limit of {limit} guests. Please try different dates.")
+            _state(phone, "ASK_CHECKIN")
+            return
+        _set(phone, "room_type", other)
+        if not database.check_availability(s["check_in"], s["check_out"], other):
+            whatsapp.send_text(phone, "😔 Unfortunately both room types are booked for those dates. Please try different dates.")
+            _state(phone, "ASK_CHECKIN")
+        else:
+            _set(phone, "room_type", other)
+            _ask_food_pref_step(phone)
     else:
-        SESSIONS.pop(phone, None)
-        _session(phone)
-        _welcome(phone)
+        whatsapp.send_text(phone, "Please tap one of the options.")
 
 
-# ── Food & Meals ──────────────────────────────────────────────────────────────
+def _ask_food_pref_step(phone: str):
+    whatsapp.send_list(
+        phone, "What are your *food preferences*?", "Select",
+        [{"title": "Dietary Preference", "rows": [
+            {"id": "food_veg",   "title": "Vegetarian",     "description": "All Veg meals"},
+            {"id": "food_nv",    "title": "Non-Vegetarian", "description": "Includes meat, fish, eggs"},
+            {"id": "food_mixed", "title": "Mixed Group",    "description": "Some Veg, some Non-Veg"},
+        ]}],
+    )
+    _state(phone, "ASK_FOOD_PREF")
 
-_FOOD_MAP = {
-    "food_veg":    "Vegetarian",
-    "food_nonveg": "Non-Vegetarian",
-    "food_mix":    "Mixed (Veg + Non-Veg)",
-    "food_jain":   "Jain",
-    "food_any":    "No Preference",
-}
+
+_FOOD_MAP = {"food_veg": "Vegetarian", "food_nv": "Non-Vegetarian", "food_mixed": "Mixed"}
 
 
-def _ask_food_prefs(phone: str, content: str):
+def _ask_food_pref(phone: str, content: str):
     pref = _FOOD_MAP.get(content)
     if not pref:
-        whatsapp.send_text(phone, "Please select your food preference from the list.")
+        whatsapp.send_text(phone, "Please select from the list above.")
         return
-    _s(phone, "food_preferences", pref)
-    whatsapp.send_list(
-        phone,
-        f"Got it — *{pref}*. 🍽️\n\n"
-        "Would you like to include *meals* in your booking?\n"
-        "_(Freshly prepared at the farmhouse)_",
-        "Choose Plan",
-        [{"title": "Meal Plans (per person / night)", "rows": [
-            {"id": "meal_none", "title": "No Meals",         "description": "Arrange on your own"},
-            {"id": "meal_b",    "title": "Breakfast Only",   "description": "Rs.200/person/night"},
-            {"id": "meal_l",    "title": "Lunch Only",       "description": "Rs.350/person/night"},
-            {"id": "meal_d",    "title": "Dinner Only",      "description": "Rs.400/person/night"},
-            {"id": "meal_bd",   "title": "Breakfast+Dinner", "description": "Rs.550/person/night"},
-            {"id": "meal_bld",  "title": "All Meals (BLD)",  "description": "Rs.900/person/night"},
-        ]}],
-    )
-    _set_state(phone, "ASK_MEAL_PLAN")
+    _set(phone, "food_preference", pref)
+    pax = _pax(phone)
+
+    if pref == "Mixed":
+        whatsapp.send_text(
+            phone,
+            f"Your group has *{pax} guests*. 🥗\n\n"
+            "How many are *Vegetarian*?\n_(Non-Veg count will be calculated automatically)_\n"
+            "Enter a number:",
+        )
+        _state(phone, "ASK_VEG_COUNT")
+    else:
+        # all veg or all nv
+        _set(phone, "veg_count", pax if pref == "Vegetarian" else 0)
+        _set(phone, "nv_count",  0   if pref == "Vegetarian" else pax)
+        _ask_meals_d1(phone)
 
 
-_MEAL_PLAN_MAP = {
-    "meal_none": "No Meals",
-    "meal_b":    "Breakfast Only",
-    "meal_l":    "Lunch Only",
-    "meal_d":    "Dinner Only",
-    "meal_bd":   "Breakfast+Dinner",
-    "meal_bld":  "All Meals (BLD)",
+def _ask_veg_count(phone: str, content: str):
+    pax = _pax(phone)
+    if not content.strip().isdigit() or not (0 <= int(content.strip()) <= pax):
+        whatsapp.send_text(phone, f"Please enter a number between 0 and {pax}.")
+        return
+    veg = int(content.strip())
+    _set(phone, "veg_count", veg)
+    _set(phone, "nv_count",  pax - veg)
+    _ask_meals_d1(phone)
+
+
+_MEAL_ID_MAP = {
+    "m1_bld": "All Meals (BLD)", "m1_bd": "Breakfast+Dinner",
+    "m1_ld":  "Lunch+Dinner",    "m1_b":  "Breakfast Only",
+    "m1_d":   "Dinner Only",     "m1_no": "No Meals",
+    "ms_bld": "All Meals (BLD)", "ms_bd": "Breakfast+Dinner",
+    "ms_ld":  "Lunch+Dinner",    "ms_b":  "Breakfast Only",
+    "ms_d":   "Dinner Only",     "ms_no": "No Meals",
 }
 
 
-def _ask_meal_plan(phone: str, content: str):
-    plan = _MEAL_PLAN_MAP.get(content)
+def _ask_meals_d1(phone: str):
+    pax = _pax(phone)
+    whatsapp.send_list(
+        phone,
+        f"Which meals on *Day 1* (arrival day)? 🍽️\n_Per person · {pax} guests_",
+        "Choose",
+        [{"title": "Day 1 Meal Plan", "rows": [
+            {"id": "m1_bld","title": "All Meals (BLD)",  "description": f"Rs.{pricing.MEAL_COMBOS['All Meals (BLD)']:,}/pax"},
+            {"id": "m1_bd", "title": "Breakfast+Dinner", "description": f"Rs.{pricing.MEAL_COMBOS['Breakfast+Dinner']:,}/pax"},
+            {"id": "m1_ld", "title": "Lunch+Dinner",     "description": f"Rs.{pricing.MEAL_COMBOS['Lunch+Dinner']:,}/pax"},
+            {"id": "m1_b",  "title": "Breakfast Only",   "description": f"Rs.{pricing.MEAL_COMBOS['Breakfast Only']:,}/pax"},
+            {"id": "m1_d",  "title": "Dinner Only",      "description": f"Rs.{pricing.MEAL_COMBOS['Dinner Only']:,}/pax"},
+            {"id": "m1_no", "title": "No Meals",         "description": "Self-arranged"},
+        ]}],
+    )
+    _state(phone, "ASK_MEALS_D1")
+
+
+def _ask_meals_d1_input(phone: str, content: str):
+    plan = _MEAL_ID_MAP.get(content)
     if not plan:
         whatsapp.send_text(phone, "Please select a meal plan from the list.")
         return
-    _s(phone, "meal_plan", plan)
-    if plan == "No Meals":
-        _s(phone, "meal_location", "N/A")
-        _ask_activities_step(phone)
-    else:
-        whatsapp.send_buttons(
-            phone,
-            f"*Meal Plan:* {plan} ✅\n\n"
-            "Would you prefer to *eat in-house* (our cook prepares meals) "
-            "or go *outside* for meals?",
-            [
-                {"id": "meal_inhouse", "title": "Eat In-House"},
-                {"id": "meal_outside", "title": "Eat Outside"},
-            ],
-        )
-        _set_state(phone, "ASK_MEAL_LOCATION")
+    _set(phone, "meal_plan_d1", plan)
 
-
-def _ask_meal_location(phone: str, content: str):
-    if content == "meal_inhouse":
-        _s(phone, "meal_location", "In-house")
-    elif content == "meal_outside":
-        _s(phone, "meal_location", "Outside (transport arranged)")
-    else:
-        whatsapp.send_text(phone, "Please tap one of the options above.")
-        return
-    _ask_activities_step(phone)
-
-
-# ── Activities (multi-select) ─────────────────────────────────────────────────
-
-def _ask_activities_step(phone: str):
     s = _session(phone)
-    chosen = ", ".join(s["activities"]) if s["activities"] else "None"
-    whatsapp.send_list(
-        phone,
-        f"Currently selected: *{chosen}*\n\nPick an *activity* to add (or skip):",
-        "Select Activity",
-        [
-            {
-                "title": "Farm Activities",
-                "rows": [
-                    {"id": "act_veg_pick",    "title": "Veg/Fruit Picking",  "description": "Rs.150/pax"},
-                    {"id": "act_animal_pet",  "title": "Animal Petting",     "description": "Rs.150/pax"},
-                    {"id": "act_feed_animal", "title": "Feeding Animals",    "description": "Rs.100/pax"},
-                    {"id": "act_farm_tour",   "title": "Guided Farm Tour",   "description": "Rs.200/pax"},
-                    {"id": "act_kids_zone",   "title": "Kids Activity Zone", "description": "Rs.150/pax"},
-                ],
-            },
-            {
-                "title": "Adventure & Outdoor",
-                "rows": [
-                    {"id": "act_city_tour",  "title": "City Tour",        "description": "Rs.500/pax"},
-                    {"id": "act_kayaking",   "title": "Kayaking",         "description": "Rs.400/pax"},
-                    {"id": "act_beach",      "title": "Beach Enjoy",      "description": "Rs.300/pax"},
-                    {"id": "act_hiking",     "title": "Hiking",           "description": "Rs.200/pax"},
-                    {"id": "act_bonfire",    "title": "Bonfire Evening",  "description": "Rs.300/group"},
-                    {"id": "act_swimming",   "title": "Swimming (Pool)",  "description": "Rs.200/pax"},
-                    {"id": "act_fruit_tour", "title": "Fruit Tour",       "description": "Rs.250/pax"},
-                    {"id": "act_none",       "title": "No Activities",    "description": "Skip & continue"},
-                ],
-            },
-        ],
-    )
-    _set_state(phone, "ASK_ACTIVITIES")
-
-
-_ACTIVITY_MAP = {
-    "act_veg_pick":    "Veg/Fruit Picking",
-    "act_animal_pet":  "Animal Petting",
-    "act_feed_animal": "Feeding Animals",
-    "act_farm_tour":   "Guided Farm Tour",
-    "act_kids_zone":   "Kids Activity Zone",
-    "act_city_tour":   "City Tour",
-    "act_kayaking":    "Kayaking",
-    "act_beach":       "Beach Enjoy",
-    "act_hiking":      "Hiking",
-    "act_bonfire":     "Bonfire Evening",
-    "act_swimming":    "Swimming (Pool)",
-    "act_fruit_tour":  "Fruit Tour",
-    "act_none":        None,
-}
-
-
-def _ask_activities(phone: str, content: str):
-    s = _session(phone)
-    if content == "act_none":
-        s["activities"] = []
-        _ask_pickup_step(phone)
-        return
-
-    activity = _ACTIVITY_MAP.get(content)
-    if activity is None:
-        whatsapp.send_text(phone, "Please select from the activity list.")
-        return
-
-    if activity not in s["activities"]:
-        s["activities"].append(activity)
-
-    chosen = ", ".join(s["activities"])
-    whatsapp.send_buttons(
-        phone,
-        f"Added! Selected so far: *{chosen}*\n\nWould you like to add more activities?",
-        [
-            {"id": "act_more", "title": "Add More"},
-            {"id": "act_done", "title": "Done"},
-        ],
-    )
-    _set_state(phone, "ASK_ACTIVITIES_DONE")
-
-
-def _ask_activities_done(phone: str, content: str):
-    if content == "act_more":
-        _ask_activities_step(phone)
-    else:
-        _ask_pickup_step(phone)
-
-
-# ── Transport ─────────────────────────────────────────────────────────────────
-
-def _ask_pickup_step(phone: str):
-    s = _session(phone)
-    # Self-drive guests don't need pickup
-    if s.get("arrival_medium") == "Self-Drive":
-        _s(phone, "transport", None)
-        _ask_internal_transport_step(phone)
-        return
-    whatsapp.send_buttons(
-        phone,
-        "Do you need *pickup* from your arrival point to the farmhouse?",
-        [
-            {"id": "pickup_yes", "title": "Yes, Need Pickup"},
-            {"id": "pickup_no",  "title": "No, Self-Arranged"},
-        ],
-    )
-    _set_state(phone, "ASK_PICKUP")
-
-
-def _ask_pickup(phone: str, content: str):
-    if content == "pickup_yes":
-        s = _session(phone)
-        medium = s.get("arrival_medium", "")
-        # Reorder rows to surface likely port first
-        all_rows = [
-            {"id": "port_kudal",   "title": "Kudal Station",     "description": f"Rs.{pricing.TRANSPORT['Kudal Station']:,}"},
-            {"id": "port_kankaw",  "title": "Kankawali Station",  "description": f"Rs.{pricing.TRANSPORT['Kankawali Station']:,}"},
-            {"id": "port_mopa",    "title": "Mopa Airport (GOX)", "description": f"Rs.{pricing.TRANSPORT['Mopa Airport (GOX)']:,}"},
-            {"id": "port_dabolim", "title": "Dabolim Airport",    "description": f"Rs.{pricing.TRANSPORT['Goa Airport – Dabolim']:,}"},
-        ]
-        if "Mopa" in medium:
-            all_rows = [all_rows[2]] + [r for r in all_rows if r["id"] != "port_mopa"]
-        elif "Dabolim" in medium:
-            all_rows = [all_rows[3]] + [r for r in all_rows if r["id"] != "port_dabolim"]
-
+    if s["nights"] > 1:
+        pax = _pax(phone)
         whatsapp.send_list(
-            phone, "Which point will you arrive at?", "Select Pickup Point",
-            [{"title": "Pickup Locations", "rows": all_rows}],
+            phone,
+            f"Which meals on *subsequent days* (Day 2 onwards)? 🍽️\n_Per person · {pax} guests_",
+            "Choose",
+            [{"title": "Subsequent Days Plan", "rows": [
+                {"id": "ms_bld","title": "All Meals (BLD)",  "description": f"Rs.{pricing.MEAL_COMBOS['All Meals (BLD)']:,}/pax"},
+                {"id": "ms_bd", "title": "Breakfast+Dinner", "description": f"Rs.{pricing.MEAL_COMBOS['Breakfast+Dinner']:,}/pax"},
+                {"id": "ms_ld", "title": "Lunch+Dinner",     "description": f"Rs.{pricing.MEAL_COMBOS['Lunch+Dinner']:,}/pax"},
+                {"id": "ms_b",  "title": "Breakfast Only",   "description": f"Rs.{pricing.MEAL_COMBOS['Breakfast Only']:,}/pax"},
+                {"id": "ms_d",  "title": "Dinner Only",      "description": f"Rs.{pricing.MEAL_COMBOS['Dinner Only']:,}/pax"},
+                {"id": "ms_no", "title": "No Meals",         "description": "Self-arranged"},
+            ]}],
         )
-        _set_state(phone, "ASK_ARRIVAL_PORT")
-    elif content == "pickup_no":
-        _s(phone, "transport", None)
-        _ask_internal_transport_step(phone)
+        _state(phone, "ASK_MEALS_SUB")
     else:
-        whatsapp.send_text(phone, "Please tap one of the options above.")
+        _set(phone, "meal_plan_sub", "No Meals")
+        _ask_arrival_step(phone)
 
 
-_PORT_MAP = {
-    "port_kudal":   "Kudal Station",
-    "port_kankaw":  "Kankawali Station",
-    "port_mopa":    "Mopa Airport (GOX)",
-    "port_dabolim": "Goa Airport – Dabolim",
-}
-
-
-def _ask_arrival_port(phone: str, content: str):
-    port = _PORT_MAP.get(content)
-    if not port:
-        whatsapp.send_text(phone, "Please select your pickup point from the list.")
+def _ask_meals_sub(phone: str, content: str):
+    plan = _MEAL_ID_MAP.get(content)
+    if not plan:
+        whatsapp.send_text(phone, "Please select a meal plan from the list.")
         return
-    _s(phone, "transport", port)
-    _ask_internal_transport_step(phone)
+    _set(phone, "meal_plan_sub", plan)
+    _ask_arrival_step(phone)
 
 
-def _ask_internal_transport_step(phone: str):
-    s = _session(phone)
-    nights = s.get("nights", 1)
+# ── Step 5: Arrival ───────────────────────────────────────────────────────────
+
+def _ask_arrival_step(phone: str):
     whatsapp.send_list(
         phone,
-        f"Do you need a *vehicle during your {nights}-night stay* for local travel?\n"
-        "_(Fuel included within 50 km/day)_",
-        "Select Vehicle",
-        [{"title": "Local Transport (per day)", "rows": [
-            {"id": "int_none",    "title": "No Vehicle Needed",  "description": "Self-managed / own transport"},
-            {"id": "int_scooter", "title": "Scooter / 2-Wheeler","description": f"Rs.{pricing.INTERNAL_TRANSPORT['Scooter / 2-Wheeler']:,}/day"},
-            {"id": "int_hatch",   "title": "Hatchback (4-seat)", "description": f"Rs.{pricing.INTERNAL_TRANSPORT['Hatchback (4-seater)']:,}/day"},
-            {"id": "int_suv",     "title": "SUV (6-7 seat)",     "description": f"Rs.{pricing.INTERNAL_TRANSPORT['SUV (6–7 seater)']:,}/day"},
+        "How will you be *arriving*? 🚗",
+        "Select Mode",
+        [{"title": "Mode of Arrival", "rows": [
+            {"id": "arr_self",      "title": "Self-Drive",           "description": "Own vehicle"},
+            {"id": "arr_kudal",     "title": "Kudal Railway",        "description": f"Rs.{pricing.PICKUP_POINTS['Kudal Railway Station']:,} base"},
+            {"id": "arr_sawant",    "title": "Sawantwadi Railway",   "description": f"Rs.{pricing.PICKUP_POINTS['Sawantwadi Railway Station']:,} base"},
+            {"id": "arr_mopa",      "title": "Mopa Airport",         "description": f"Rs.{pricing.PICKUP_POINTS['Mopa Airport']:,} base"},
+            {"id": "arr_chipi",     "title": "Chipi Airport",        "description": f"Rs.{pricing.PICKUP_POINTS['Chipi Airport']:,} base"},
         ]}],
     )
-    _set_state(phone, "ASK_INTERNAL_TRANSPORT")
+    _state(phone, "ASK_ARRIVAL_MODE")
 
 
-_INT_TRANSPORT_MAP = {
-    "int_none":    None,
-    "int_scooter": "Scooter / 2-Wheeler",
-    "int_hatch":   "Hatchback (4-seater)",
-    "int_suv":     "SUV (6–7 seater)",
+_ARRIVAL_MAP = {
+    "arr_self":   ("Self-Drive",              None),
+    "arr_kudal":  ("Railway",  "Kudal Railway Station"),
+    "arr_sawant": ("Railway",  "Sawantwadi Railway Station"),
+    "arr_mopa":   ("Flight",   "Mopa Airport"),
+    "arr_chipi":  ("Flight",   "Chipi Airport"),
 }
 
 
-def _ask_internal_transport(phone: str, content: str):
-    if content not in _INT_TRANSPORT_MAP:
-        whatsapp.send_text(phone, "Please select a transport option from the list.")
+def _ask_arrival_mode(phone: str, content: str):
+    result = _ARRIVAL_MAP.get(content)
+    if not result:
+        whatsapp.send_text(phone, "Please select from the list.")
         return
-    _s(phone, "internal_transport", _INT_TRANSPORT_MAP[content])
-    _ask_trip_planning_step(phone)
+    mode, pickup = result
+    _set(phone, "arrival_mode",  mode)
+    _set(phone, "pickup_point",  pickup)
 
-
-# ── Trip planning ─────────────────────────────────────────────────────────────
-
-def _ask_trip_planning_step(phone: str):
-    s = _session(phone)
-    if s.get("nights", 1) >= 2:
-        interest = s.get("interests", "")
-        whatsapp.send_buttons(
-            phone,
-            f"Would you like *trip planning suggestions* tailored for *{interest}* in Goa? 🗺️",
-            [
-                {"id": "trip_yes", "title": "Yes Please!"},
-                {"id": "trip_no",  "title": "No Thanks"},
-            ],
-        )
-        _set_state(phone, "ASK_TRIP_PLANNING")
+    if mode == "Self-Drive":
+        _set(phone, "vehicle_type", None)
+        _ask_activities_d1_step(phone)
     else:
-        _show_summary(phone)
+        pax = _pax(phone)
+        whatsapp.send_list(
+            phone,
+            f"What type of *vehicle* do you need for pickup?\n_{pax} guests to transport_",
+            "Select Vehicle",
+            [{"title": "Vehicle Type", "rows": [
+                {"id": "veh_sedan", "title": "Sedan",        "description": "4-seater car"},
+                {"id": "veh_muv",   "title": "MUV",          "description": "6-7 seater MUV"},
+                {"id": "veh_bus",   "title": "Charter Bus",  "description": "Large group (20+ pax)"},
+            ]}],
+        )
+        _state(phone, "ASK_VEHICLE_TYPE")
 
 
-def _ask_trip_planning(phone: str, content: str):
-    if content == "trip_yes":
-        s = _session(phone)
-        _send_trip_suggestions(phone, s.get("interests", ""))
+def _ask_vehicle_type(phone: str, content: str):
+    veh_map = {"veh_sedan": "Sedan", "veh_muv": "MUV", "veh_bus": "Charter Bus"}
+    veh = veh_map.get(content)
+    if not veh:
+        whatsapp.send_text(phone, "Please select a vehicle type from the list.")
+        return
+    _set(phone, "vehicle_type", veh)
+    _ask_activities_d1_step(phone)
+
+
+# ── Step 6: Activities ────────────────────────────────────────────────────────
+
+def _ask_activities_d1_step(phone: str):
+    s      = _session(phone)
+    chosen = ", ".join(s["activities_d1"]) or "None selected"
+    whatsapp.send_list(
+        phone,
+        f"Selected so far: *{chosen}*\n\n"
+        "Pick a *Day 1 activity* (on the farm):",
+        "Select",
+        [{"title": "Day 1 — Farm Activities", "rows": [
+            {"id": "d1_petting", "title": "Animal Petting",          "description": "Free · 1 hour"},
+            {"id": "d1_bullock", "title": "Bullock Cart Ride",       "description": "Rs.100/pax · 15 mins"},
+            {"id": "d1_bkfast",  "title": "Pick Breakfast Plate",    "description": "Rs.300/pax · 30 mins"},
+            {"id": "d1_trek",    "title": "Trekking",                "description": "Free · 2 hours"},
+            {"id": "d1_swim",    "title": "Swimming Pool",           "description": "Free · All day"},
+            {"id": "d1_rain",    "title": "Gazebo Rain Dance",       "description": "Rs.150/pax · 2 hours"},
+            {"id": "d1_games",   "title": "Indoor Games",            "description": "Rs.150/pax · 3-4 hours"},
+            {"id": "d1_none",    "title": "No Activities",           "description": "Skip & continue"},
+        ]}],
+    )
+    _state(phone, "ASK_ACTIVITIES_D1")
+
+
+_D1_MAP = {
+    "d1_petting": "Animal Petting",
+    "d1_bullock": "Bullock Cart Ride",
+    "d1_bkfast":  "Pick Your Breakfast Plate",
+    "d1_trek":    "Trekking",
+    "d1_swim":    "Swimming Pool",
+    "d1_rain":    "Gazebo Rain Dance",
+    "d1_games":   "Indoor Games",
+    "d1_none":    None,
+}
+
+
+def _ask_activities_d1(phone: str, content: str):
+    s = _session(phone)
+    if content == "d1_none":
+        s["activities_d1"] = []
+        _ask_activities_d2_step(phone)
+        return
+    act = _D1_MAP.get(content)
+    if act is None:
+        whatsapp.send_text(phone, "Please select from the list.")
+        return
+    if act not in s["activities_d1"]:
+        s["activities_d1"].append(act)
+    chosen = ", ".join(s["activities_d1"])
+    whatsapp.send_buttons(
+        phone,
+        f"Added ✅ *{act}*\nSelected: *{chosen}*\n\nAdd more or done?",
+        [
+            {"id": "d1_more", "title": "Add More"},
+            {"id": "d1_done", "title": "Done"},
+        ],
+    )
+    _state(phone, "ASK_ACTIVITIES_D1_DONE")
+
+
+def _ask_activities_d1_done(phone: str, content: str):
+    if content == "d1_more":
+        _ask_activities_d1_step(phone)
+    else:
+        _ask_activities_d2_step(phone)
+
+
+def _ask_activities_d2_step(phone: str):
+    s      = _session(phone)
+    chosen = ", ".join(s["activities_d2"]) or "None selected"
+    whatsapp.send_list(
+        phone,
+        f"Selected so far: *{chosen}*\n\n"
+        "Pick a *Day 2 activity* (off-farm / outdoor):",
+        "Select",
+        [{"title": "Day 2 — Outdoor Adventures", "rows": [
+            {"id": "d2_kayak",   "title": "Kayaking",                 "description": "Rs.400/boat · 1 hour"},
+            {"id": "d2_beach",   "title": "Beach & Temple Visit",     "description": "Free · Transport charges apply"},
+            {"id": "d2_malvan",  "title": "Malvan Water Sports",      "description": "Free · Local fare applies"},
+            {"id": "d2_vengurla","title": "Vengurla Beach",           "description": "Free · Transport charges apply"},
+            {"id": "d2_none",    "title": "No Activities",            "description": "Skip & continue"},
+        ]}],
+    )
+    _state(phone, "ASK_ACTIVITIES_D2")
+
+
+_D2_MAP = {
+    "d2_kayak":    "Kayaking",
+    "d2_beach":    "Beach & Temple Visit",
+    "d2_malvan":   "Malvan Water Sports",
+    "d2_vengurla": "Vengurla Beach Exploration",
+    "d2_none":     None,
+}
+
+
+def _ask_activities_d2(phone: str, content: str):
+    s = _session(phone)
+    if content == "d2_none":
+        s["activities_d2"] = []
+        _show_policy(phone)
+        return
+    act = _D2_MAP.get(content)
+    if act is None:
+        whatsapp.send_text(phone, "Please select from the list.")
+        return
+    if act not in s["activities_d2"]:
+        s["activities_d2"].append(act)
+    chosen = ", ".join(s["activities_d2"])
+    whatsapp.send_buttons(
+        phone,
+        f"Added ✅ *{act}*\nSelected: *{chosen}*\n\nAdd more or done?",
+        [
+            {"id": "d2_more", "title": "Add More"},
+            {"id": "d2_done", "title": "Done"},
+        ],
+    )
+    _state(phone, "ASK_ACTIVITIES_D2_DONE")
+
+
+def _ask_activities_d2_done(phone: str, content: str):
+    if content == "d2_more":
+        _ask_activities_d2_step(phone)
+    else:
+        _show_policy(phone)
+
+
+# ── Step 7: Policy ────────────────────────────────────────────────────────────
+
+def _show_policy(phone: str):
+    whatsapp.send_buttons(
+        phone,
+        f"📜 *Booking Policy — Please Read*\n\n"
+        f"{config.CANCELLATION_POLICY}\n\n"
+        f"{config.PAYMENT_INFO}\n\n"
+        "Tap *Got It* to see your full booking summary.",
+        [
+            {"id": "policy_ok",   "title": "Got It, Continue"},
+            {"id": "policy_call", "title": "Talk to Team"},
+        ],
+    )
+    _state(phone, "SHOW_POLICY")
+
+
+def _handle_policy(phone: str, content: str):
+    if content == "policy_call":
+        _send_contact_info(phone)
+        return
     _show_summary(phone)
 
 
-_TRIP_SUGGESTIONS = {
-    "Nature & Wildlife": (
-        "🌿 *Nature & Wildlife — Top Spots*\n\n"
-        "📍 Dudhsagar Falls — 45 km (iconic waterfall)\n"
-        "📍 Bhagwan Mahaveer Wildlife Sanctuary — 35 km\n"
-        "📍 Netravali Wildlife Sanctuary — 40 km\n"
-        "📍 Cotigao Bird Sanctuary — 25 km\n"
-        "📍 Bondla Mini Zoo — 50 km\n\n"
-        "Best time for birdwatching: 6–9 AM\n"
-        "Tip: Carry binoculars & wear earthy tones."
-    ),
-    "Beach & Water Sports": (
-        "🏖️ *Beach & Water Sports — Top Spots*\n\n"
-        "📍 Palolem Beach — 20 km (most scenic)\n"
-        "📍 Agonda Beach — 18 km (quiet & clean)\n"
-        "📍 Cola Beach — 22 km (private lagoon)\n"
-        "📍 Butterfly Beach — 25 km (boat-access only)\n\n"
-        "Activities: Kayaking, snorkelling, parasailing\n"
-        "Tip: Avoid beaches on Tuesdays (cleaning day)."
-    ),
-    "Culture & Heritage": (
-        "🏛️ *Culture & Heritage — Top Spots*\n\n"
-        "📍 Basilica of Bom Jesus (UNESCO) — 60 km\n"
-        "📍 Ancestral Goa Museum — 55 km\n"
-        "📍 Savoi Spice Plantation — 45 km\n"
-        "📍 Sahakari Spice Farm — 50 km\n"
-        "📍 Goa State Museum, Panaji — 65 km\n\n"
-        "Tip: Full-day culture tour recommended."
-    ),
-    "Holistic & Wellness": (
-        "🧘 *Holistic & Wellness — What We Offer*\n\n"
-        "🌅 Sunrise yoga on our farm lawn (on request)\n"
-        "🌿 Organic farm-to-table meals by our cook\n"
-        "🌊 Agonda Beach — sunrise meditation walks\n"
-        "💆 Ayurvedic massage — arrange on premises\n"
-        "🍃 Herbal teas & detox menu available\n\n"
-        "Let us know to prepare a custom wellness schedule!"
-    ),
-    "Festival & Celebration": (
-        "🎉 *Festival & Celebration — We Can Arrange*\n\n"
-        "🔥 Bonfire with BBQ & music\n"
-        "🎂 Birthday / anniversary cake\n"
-        "🌺 Decorated room for special occasions\n"
-        "📸 Farm photoshoot setup\n"
-        "🥂 Celebration package — ask us!\n\n"
-        f"📞 To discuss arrangements: {config.PROPERTY_CONTACT}"
-    ),
-    "Adventure & Outdoor": (
-        "🏕️ *Adventure & Outdoor — Top Experiences*\n\n"
-        "🥾 Guided trekking — Sahyadri foothills\n"
-        "🚴 Cycling — farm roads & paddy trails\n"
-        "🎣 Fishing — Talpona River (15 km)\n"
-        "🛶 River rafting — Mhadei (seasonal)\n"
-        "🏕️ Camping & stargazing on farm\n"
-        "🧗 Rock climbing — Chandranath Hill"
-    ),
-    "Quiet Getaway": (
-        "☮️ *Quiet Getaway — What to Enjoy Here*\n\n"
-        "📚 Farm reading corner with hammocks\n"
-        "🌅 Sunrise & sunset viewpoints on property\n"
-        "🐦 Self-guided morning birdwalk (map provided)\n"
-        "🌾 Leisurely farm & plantation walks\n"
-        "🍵 Evening tea by the farm pond\n\n"
-        "Our team ensures minimal noise & maximum peace. 🤫"
-    ),
-}
-
-
-def _send_trip_suggestions(phone: str, interest: str):
-    msg = _TRIP_SUGGESTIONS.get(
-        interest,
-        "🗺️ Our team will share a personalised itinerary after booking confirmation!",
-    )
-    whatsapp.send_text(phone, msg)
-    whatsapp.send_text(
-        phone,
-        f"📞 *Contacts for Your Trip*\n\n"
-        f"🚗 Driver: {config.TRANSPORT_CONTACT}\n"
-        f"🎭 Tour Guide: {config.TOUR_GUIDE_CONTACT}\n"
-        f"🏄 Sports / Adventure: {config.SPORTS_GUIDE_CONTACT}\n\n"
-        "_Share your booking ID when you reach out._",
-    )
-
-
-# ── Summary & Confirmation ────────────────────────────────────────────────────
+# ── Step 8: Summary & Confirm ─────────────────────────────────────────────────
 
 def _show_summary(phone: str):
-    s = _session(phone)
-    ci_month = date.fromisoformat(s["check_in"]).month
+    s   = _session(phone)
+    pax = _pax(phone)
 
     totals = pricing.calculate_total(
-        pax=s["pax"],
-        rooms=s["rooms_count"],
-        nights=s["nights"],
-        room_type=s["room_type"],
-        selected_activities=s["activities"],
-        transport_port=s["transport"],
-        meal_plan=s["meal_plan"],
-        internal_transport=s["internal_transport"],
-        check_in_month=ci_month,
+        room_type     = s["room_type"],
+        nights        = s["nights"],
+        pax           = pax,
+        meal_plan_d1  = s["meal_plan_d1"],
+        meal_plan_sub = s["meal_plan_sub"],
+        activities_d1 = s["activities_d1"],
+        activities_d2 = s["activities_d2"],
+        pickup_point  = s["pickup_point"],
+        vehicle_type  = s["vehicle_type"],
     )
+    SESSIONS[phone]["_totals"] = totals
 
-    # Activity lines
-    act_lines = (
-        "\n".join(
-            f"  • {a}: Rs.{pricing.ACTIVITIES[a]:,}"
-            + ("" if a in pricing.BONFIRE_PER_GROUP else f" x {s['pax']} pax")
-            + f" = Rs.{pricing.ACTIVITIES[a] * (1 if a in pricing.BONFIRE_PER_GROUP else s['pax']):,}"
-            for a in s["activities"]
-        )
-    ) if s["activities"] else "  None"
+    advance = round(totals["total"] * config.ADVANCE_PERCENT / 100)
 
+    d1_acts = ", ".join(s["activities_d1"]) or "None"
+    d2_acts = ", ".join(s["activities_d2"]) or "None"
+    meals   = f"Day 1: {s['meal_plan_d1']}"
+    if s["nights"] > 1:
+        meals += f" | Day 2+: {s['meal_plan_sub']}"
     transport_line = (
-        f"  {s['transport']}: Rs.{pricing.TRANSPORT[s['transport']]:,}"
-        if s["transport"] else "  None / Self-arranged"
+        f"{s['pickup_point']} ({s['vehicle_type']}): Rs.{totals['transport']:,}"
+        if s["pickup_point"] else "Self-drive / Self-arranged"
     )
 
-    int_trans_line = (
-        f"  {s['internal_transport']}: Rs.{pricing.INTERNAL_TRANSPORT[s['internal_transport']]:,}/day x {s['nights']}n"
-        if s["internal_transport"] else "  None"
-    )
-
-    meal_line = (
-        f"  {s['meal_plan']}: Rs.{pricing.MEAL_PLAN[s['meal_plan']]:,}/pax/n x {s['pax']} pax x {s['nights']}n"
-        if s["meal_plan"] != "No Meals" else "  No Meals"
-    )
+    ci = date.fromisoformat(s["check_in"])
+    co = date.fromisoformat(s["check_out"])
 
     summary = (
-        f"*Booking Summary — {config.PROPERTY_NAME}*\n\n"
-        f"*Guest:* {s.get('guest_name', '—')}\n"
-        f"*Group:* {s.get('client_type', '—')}\n"
-        f"*Interest:* {s.get('interests', '—')}\n"
-        f"*Arrival:* {s.get('arrival_medium', '—')}\n\n"
-        f"*Dates:* {s['check_in']} to {s['check_out']} ({s['nights']} night(s))\n"
-        f"*Guests:* {s['pax']}   *Rooms:* {s['rooms_count']} ({s['room_type']})\n"
-        f"*Food:* {s.get('food_preferences', '—')}\n\n"
-        f"*Room Cost:* Rs.{totals['room']:,}  _{totals['seasonal_note']}_\n\n"
-        f"*Meals* ({s['meal_plan']}):\n{meal_line}\n"
-        f"  Subtotal: Rs.{totals['meals']:,}\n\n"
-        f"*Activities:*\n{act_lines}\n"
-        f"  Subtotal: Rs.{totals['activities']:,}\n\n"
-        f"*Pickup:*\n{transport_line}\n\n"
-        f"*Local Transport:*\n{int_trans_line}\n"
-        f"  Subtotal: Rs.{totals['internal_transport']:,}\n\n"
-        f"{'—' * 20}\n"
-        f"*TOTAL: Rs.{totals['total']:,}*\n"
-        f"{'—' * 20}\n\n"
-        "Shall I confirm this booking?"
+        f"📋 *Booking Summary — {config.PROPERTY_NAME}*\n\n"
+        f"*Name:*    {s['guest_name']}\n"
+        f"*Guests:*  {s['adults']} adult(s), {s['children']} child(ren)\n"
+        f"*Email:*   {s.get('email') or 'Not provided'}\n\n"
+        f"*Check-in:*  {ci.strftime('%d %b %Y')}  {config.CHECK_IN_TIME}\n"
+        f"*Check-out:* {co.strftime('%d %b %Y')}  {config.CHECK_OUT_TIME}\n"
+        f"*Nights:*    {s['nights']}\n\n"
+        f"*Room:*     {s['room_type']}\n"
+        f"*Food:*     {s['food_preference']} "
+        f"({s['veg_count']} Veg / {s['nv_count']} Non-Veg)\n"
+        f"*Meals:*    {meals}\n\n"
+        f"*Day 1 Activities:* {d1_acts}\n"
+        f"*Day 2 Activities:* {d2_acts}\n\n"
+        f"*Arrival:*  {transport_line}\n\n"
+        f"*Special Requests:* {s.get('special_requests') or 'None'}\n\n"
+        f"{'—'*22}\n"
+        f"  Room:        Rs.{totals['room']:,}\n"
+        f"  Meals:       Rs.{totals['meals']:,}\n"
+        f"  Activities:  Rs.{totals['activities']:,}\n"
+        f"  Transport:   Rs.{totals['transport']:,}\n"
+        f"{'—'*22}\n"
+        f"  *TOTAL:      Rs.{totals['total']:,}*\n"
+        f"  Advance due: Rs.{advance:,} ({config.ADVANCE_PERCENT}%)\n"
+        f"{'—'*22}\n\n"
+        "Please review and confirm."
     )
 
-    SESSIONS[phone]["_totals"] = totals
     whatsapp.send_buttons(
         phone, summary,
         [
-            {"id": "confirm_yes", "title": "Confirm Booking"},
-            {"id": "confirm_no",  "title": "Cancel"},
+            {"id": "confirm_yes",  "title": "Confirm Booking"},
+            {"id": "confirm_edit", "title": "Change Dates"},
+            {"id": "confirm_call", "title": "Talk to Team"},
         ],
     )
-    _set_state(phone, "CONFIRM_BOOKING")
+    _state(phone, "CONFIRM_BOOKING")
 
 
 def _confirm_booking(phone: str, content: str):
-    if content == "confirm_no":
-        whatsapp.send_text(phone, "Booking cancelled. Type *Hi* anytime to start again! 🌿")
-        del SESSIONS[phone]
+    if content == "confirm_call":
+        _send_contact_info(phone)
+        return
+    if content == "confirm_edit":
+        whatsapp.send_text(phone, "Please share your new check-in and check-out dates:")
+        _state(phone, "ASK_CHECKIN")
         return
     if content != "confirm_yes":
-        whatsapp.send_text(phone, "Please tap Confirm Booking or Cancel.")
+        whatsapp.send_text(phone, "Please tap Confirm, Change Dates, or Talk to Team.")
         return
 
-    s = _session(phone)
+    s      = _session(phone)
     totals = s.get("_totals") or {}
+    pax    = _pax(phone)
+    advance = round(totals.get("total", 0) * config.ADVANCE_PERCENT / 100)
 
-    booking_id = database.create_booking(
-        phone=phone,
-        check_in=s["check_in"],
-        check_out=s["check_out"],
-        room_type=s["room_type"],
-        rooms_count=s["rooms_count"],
-        pax=s["pax"],
-        activities=s["activities"],
-        transport=s["transport"],
-        total_amount=totals.get("total", 0),
-        guest_name=s.get("guest_name"),
-        client_type=s.get("client_type"),
-        interests=s.get("interests"),
-        arrival_medium=s.get("arrival_medium"),
-        food_preferences=s.get("food_preferences"),
-        meal_plan=s.get("meal_plan", "No Meals"),
-        meal_location=s.get("meal_location", "In-house"),
-        internal_transport=s.get("internal_transport"),
+    booking_id, ref = database.create_booking(
+        phone            = phone,
+        guest_name       = s["guest_name"],
+        email            = s.get("email"),
+        adults           = s["adults"],
+        children         = s["children"],
+        check_in         = s["check_in"],
+        check_out        = s["check_out"],
+        nights           = s["nights"],
+        special_requests = s.get("special_requests"),
+        room_type        = s["room_type"],
+        food_preference  = s["food_preference"],
+        veg_count        = s["veg_count"],
+        nv_count         = s["nv_count"],
+        meal_plan_d1     = s["meal_plan_d1"],
+        meal_plan_sub    = s["meal_plan_sub"],
+        arrival_mode     = s.get("arrival_mode"),
+        pickup_point     = s.get("pickup_point"),
+        vehicle_type     = s.get("vehicle_type"),
+        activities_d1    = s["activities_d1"],
+        activities_d2    = s["activities_d2"],
+        total_amount     = totals.get("total", 0),
+        advance_amount   = advance,
     )
 
-    # 1. Confirmation + payment
+    ci = date.fromisoformat(s["check_in"])
+
+    # 1. Confirmation
     whatsapp.send_text(
         phone,
-        f"*Booking Confirmed!* 🎉\n\n"
-        f"*Booking ID:* #{booking_id}\n"
-        f"*Name:* {s.get('guest_name', '—')}\n"
-        f"*Dates:* {s['check_in']} to {s['check_out']}\n"
-        f"*Total:* Rs.{totals.get('total', 0):,}\n\n"
-        f"{config.PAYMENT_INFO}",
+        f"🎉 *Booking Confirmed!*\n\n"
+        f"*Booking Ref:* {ref}\n"
+        f"*Name:* {s['guest_name']}\n"
+        f"*Dates:* {s['check_in']} → {s['check_out']}\n"
+        f"*Room:* {s['room_type']}\n"
+        f"*Total:* Rs.{totals.get('total',0):,}\n\n"
+        f"{config.PAYMENT_INFO}\n\n"
+        f"*Please pay the advance of Rs.{advance:,} to confirm your slot.*",
     )
 
-    # 2. Farmhouse address & check-in details
+    # 2. Arrival info
     whatsapp.send_text(
         phone,
-        f"*Farmhouse Details*\n\n"
+        f"📍 *Farm Details*\n\n"
         f"*Address:* {config.PROPERTY_ADDRESS}\n"
-        f"*GPS / Maps:* {config.PROPERTY_GPS}\n\n"
+        f"*GPS:* {config.PROPERTY_GPS}\n\n"
         f"*Check-in:*  {config.CHECK_IN_TIME}\n"
         f"*Check-out:* {config.CHECK_OUT_TIME}\n\n"
         f"*Contact:* {config.PROPERTY_CONTACT}\n"
-        f"_Please carry a valid Govt. Photo ID._",
+        f"*Email:* {config.SUPPORT_EMAIL}\n\n"
+        "_Please carry a valid Govt. Photo ID._",
     )
 
-    # 3. Things to carry + climate
-    ci_month = date.fromisoformat(s["check_in"]).month
-    climate  = config.CLIMATE_BY_MONTH.get(ci_month, "Expect warm, pleasant weather.")
+    # 3. Packing + climate
+    climate = config.CLIMATE_BY_MONTH.get(ci.month, "Expect pleasant weather.")
     whatsapp.send_text(
         phone,
         "*What to Carry*\n\n"
@@ -933,267 +884,245 @@ def _confirm_booking(phone: str, content: str):
         + f"\n\n*Climate during your stay:*\n{climate}",
     )
 
-    # 4. Medical & emergency
+    # 4. Medical
     whatsapp.send_text(
         phone,
-        f"*Medical & Emergency*\n\n"
+        f"🏥 *Medical & Emergency*\n\n"
         f"Nearest Hospital: {config.NEAREST_HOSPITAL}\n"
-        f"Hospital Contact: {config.MEDICAL_CONTACT}\n"
+        f"Contact: {config.MEDICAL_CONTACT}\n"
         f"Ambulance: {config.AMBULANCE}\n"
         f"{config.PHARMACY_INFO}",
     )
 
-    # 5. Transport contacts (only if relevant)
-    if s.get("transport") or s.get("internal_transport"):
-        whatsapp.send_text(
-            phone,
-            f"*Transport Contacts*\n\n"
-            f"Driver: {config.TRANSPORT_CONTACT}\n"
-            f"Tour Guide: {config.TOUR_GUIDE_CONTACT}\n"
-            f"Adventure / Sports: {config.SPORTS_GUIDE_CONTACT}\n\n"
-            f"_Please share booking ID *#{booking_id}* when contacting them._",
-        )
-
-    # 6. Relevant policies based on client type
-    ct  = s.get("client_type", "")
-    pol = f"*Property Policies*\n\n" \
-          f"Noise: {config.NOISE_POLICY}\n" \
-          f"Pets:  {config.PET_POLICY}"
-    if "Family" in ct:
-        pol += f"\nKids:  {config.CHILD_POLICY}"
-    if "Wellness" in ct or "Senior" in ct:
-        pol += f"\nSeniors: {config.SENIOR_POLICY}"
-    pol += f"\nDisabled Access: {config.DISABLED_POLICY}"
-    whatsapp.send_text(phone, pol)
-
-    # 7. Farewell
+    # 5. Farewell
     whatsapp.send_text(
         phone,
-        f"Thank you for choosing *{config.PROPERTY_NAME}*! 🌿\n"
-        "We look forward to hosting you. See you soon! 🙏\n\n"
+        f"🌾 *Thank you for choosing {config.PROPERTY_NAME}!*\n\n"
+        f"Your booking reference is *{ref}*. "
+        "Our team will reach out to confirm your advance payment.\n\n"
+        f"See you soon! 🙏\n\n"
         "Type *Hi* anytime to make another booking.",
     )
 
     del SESSIONS[phone]
 
 
+def _send_contact_info(phone: str):
+    whatsapp.send_text(
+        phone,
+        f"📞 *Talk to Our Team*\n\n"
+        f"*Phone / WhatsApp:* {config.PROPERTY_CONTACT}\n"
+        f"*Email:* {config.SUPPORT_EMAIL}\n\n"
+        "Available: 8 AM – 8 PM daily 🌾\n\n"
+        "Type *Hi* to restart the chatbot anytime.",
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
-# ── INFO BRANCH ───────────────────────────────────────────────────────────────
+# ── INFO / EXPLORE FLOW ───────────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _show_info_menu(phone: str):
+    s = _session(phone)
     whatsapp.send_list(
         phone,
-        f"*{config.PROPERTY_NAME} — Property Information*\n\nWhat would you like to know?",
-        "Browse Info",
+        f"Great, *{s.get('guest_name','there')}*! 🌿\n\n"
+        f"What would you like to know about *{config.PROPERTY_NAME}*?",
+        "Browse Topics",
         [
             {
                 "title": "Property",
                 "rows": [
-                    {"id": "info_facilities", "title": "Facilities",        "description": "TV, AC, WiFi, pool, power..."},
-                    {"id": "info_rooms",      "title": "Rooms & Bathrooms", "description": "Room types, bathroom details"},
-                    {"id": "info_policies",   "title": "Policies",          "description": "Check-in/out, noise, pets, kids"},
-                    {"id": "info_payments",   "title": "Payments",          "description": "UPI, cards, cash options"},
+                    {"id": "inf_rooms",     "title": "Rooms & Facilities",  "description": "Room types, bathrooms, amenities"},
+                    {"id": "inf_food",      "title": "Food & Dining",       "description": "Meal options, veg/non-veg, prices"},
+                    {"id": "inf_pricing",   "title": "Pricing & Tariff",    "description": "Room rates, extra charges"},
                 ],
             },
             {
                 "title": "Activities & Logistics",
                 "rows": [
-                    {"id": "info_activities", "title": "Activities & Games", "description": "Farm, adventure, free games"},
-                    {"id": "info_transport",  "title": "Transport",          "description": "Pickup, drivers, guides"},
-                    {"id": "info_medical",    "title": "Medical / Emergency","description": "Hospital, pharmacy"},
-                    {"id": "info_carry",      "title": "What to Carry",      "description": "Packing tips & checklist"},
-                    {"id": "info_climate",    "title": "Climate & Weather",  "description": "Seasonal guide"},
-                    {"id": "info_photos",     "title": "Photos",             "description": "How to view farm photos"},
+                    {"id": "inf_activities","title": "Activities & Games",  "description": "Day 1 & Day 2 activities"},
+                    {"id": "inf_transport", "title": "Transport & Location","description": "Pickup points, GPS, directions"},
+                    {"id": "inf_photos",    "title": "Farm Photos",         "description": "View our farm gallery"},
+                    {"id": "inf_climate",   "title": "Climate & Packing",   "description": "Weather & what to bring"},
+                    {"id": "inf_medical",   "title": "Medical & Safety",    "description": "Hospital, pharmacy, emergency"},
                 ],
             },
         ],
     )
-    _set_state(phone, "INFO_MENU")
+    _state(phone, "INFO_MENU")
 
 
 def _info_menu(phone: str, content: str):
+    if content == "path_book":
+        _start_booking(phone)
+        return
     dispatch = {
-        "info_facilities": _info_facilities,
-        "info_rooms":      _info_rooms,
-        "info_policies":   _info_policies,
-        "info_payments":   _info_payments,
-        "info_activities": _info_activities,
-        "info_transport":  _info_transport,
-        "info_medical":    _info_medical,
-        "info_carry":      _info_carry,
-        "info_climate":    _info_climate,
-        "info_photos":     _info_photos,
+        "inf_rooms":      _info_rooms,
+        "inf_food":       _info_food,
+        "inf_pricing":    _info_pricing,
+        "inf_activities": _info_activities,
+        "inf_transport":  _info_transport,
+        "inf_photos":     _info_photos,
+        "inf_climate":    _info_climate,
+        "inf_medical":    _info_medical,
     }
-    handler = dispatch.get(content)
-    if handler:
-        handler(phone)
+    fn = dispatch.get(content)
+    if fn:
+        fn(phone)
     else:
-        whatsapp.send_text(phone, "Please select a category from the menu.")
+        whatsapp.send_text(phone, "Please select a topic from the menu.")
 
 
-def _info_back_buttons(phone: str):
+def _info_back(phone: str):
+    """Send back/book buttons after every info response."""
     whatsapp.send_buttons(
-        phone,
-        "What would you like to do next?",
+        phone, "What would you like to do next?",
         [
-            {"id": "info_back", "title": "Back to Info Menu"},
-            {"id": "main_book", "title": "Book a Stay"},
+            {"id": "inf_back", "title": "Back to Menu"},
+            {"id": "path_book","title": "Book a Stay"},
         ],
     )
-    _set_state(phone, "INFO_BACK")
+    _state(phone, "INFO_BACK")
 
 
-def _info_back(phone: str, content: str):
-    if content == "info_back":
-        _show_info_menu(phone)
-    elif content == "main_book":
-        name = _session(phone).get("guest_name")
-        if name:
-            whatsapp.send_text(
-                phone,
-                f"Welcome back, *{name}*! 😊\n\n"
-                "Please share your *check-in and check-out dates*:\n"
-                "Example: _4 June 2026 to 6 June 2026_",
-            )
-            _set_state(phone, "ASK_DATES")
-        else:
-            whatsapp.send_text(phone, "Let's get started! What is your *name*?")
-            _set_state(phone, "ASK_NAME")
+def _handle_info_back(phone: str, content: str):
+    if content == "path_book":
+        _start_booking(phone)
     else:
         _show_info_menu(phone)
-
-
-# ── Info handlers ─────────────────────────────────────────────────────────────
-
-def _info_facilities(phone: str):
-    lines = "\n".join(f"  {k}: {v}" for k, v in config.FACILITIES.items())
-    whatsapp.send_text(phone, f"*Facilities at {config.PROPERTY_NAME}*\n\n{lines}")
-    _info_back_buttons(phone)
 
 
 def _info_rooms(phone: str):
-    text = ""
-    for r in config.ROOM_DETAILS:
-        ac  = "AC" if r["ac"]  else "No AC"
-        tv  = "TV" if r["tv"]  else "No TV"
-        text += (
-            f"*{r['name']} — {r['type']}*\n"
-            f"  Bathroom: {r['bathroom']}\n"
-            f"  {ac}  |  {tv}  |  Max {r['pax']} guests\n"
-            f"  Base Rate: Rs.{r['rate']:,}/night\n\n"
-        )
-    whatsapp.send_text(phone, f"*Room Details*\n\n{text.strip()}")
-    _info_back_buttons(phone)
-
-
-def _info_policies(phone: str):
-    msg = (
-        f"*Property Policies*\n\n"
-        f"Check-in:  {config.CHECK_IN_TIME}\n"
-        f"Check-out: {config.CHECK_OUT_TIME}\n\n"
-        f"Noise Policy:\n{config.NOISE_POLICY}\n\n"
-        f"Pets:\n{config.PET_POLICY}\n\n"
-        f"Children:\n{config.CHILD_POLICY}\n\n"
-        f"Senior Citizens:\n{config.SENIOR_POLICY}\n\n"
-        f"Differently Abled:\n{config.DISABLED_POLICY}\n\n"
-        f"Extra Guest: Rs.{config.EXTRA_PERSON_FEE}/person/night (above 3 per room)"
+    lines = "\n".join(f"  {k}: {v}" for k, v in config.FACILITIES.items())
+    whatsapp.send_text(
+        phone,
+        f"🏠 *Rooms & Facilities — {config.PROPERTY_NAME}*\n\n"
+        f"*Room Types:*\n"
+        f"  🏡 Family Suite — up to 4 guests | Rs.{pricing.ROOM_RATES['Family Suite']:,}/night\n"
+        f"  🛏️ Dormitory Stay — up to 6 guests | Rs.{pricing.ROOM_RATES['Dormitory Stay']:,}/night\n\n"
+        f"*Facilities:*\n{lines}\n\n"
+        f"*Check-in:* {config.CHECK_IN_TIME}  |  *Check-out:* {config.CHECK_OUT_TIME}\n\n"
+        f"📎 Full details: {config.WEBSITE_URL}/rooms",
     )
-    whatsapp.send_text(phone, msg)
-    _info_back_buttons(phone)
+    _info_back(phone)
 
 
-def _info_payments(phone: str):
-    whatsapp.send_text(phone, config.PAYMENT_INFO)
-    _info_back_buttons(phone)
+def _info_food(phone: str):
+    whatsapp.send_text(
+        phone,
+        f"🍽️ *Food & Dining — {config.PROPERTY_NAME}*\n\n"
+        "Fresh home-cooked meals, both Veg & Non-Veg.\n\n"
+        "*Meal Prices (per person):*\n"
+        f"  Breakfast: Rs.{pricing.MEAL_PRICES['Breakfast']:,}\n"
+        f"  Lunch:     Rs.{pricing.MEAL_PRICES['Lunch']:,}\n"
+        f"  Dinner:    Rs.{pricing.MEAL_PRICES['Dinner']:,}\n\n"
+        "*Meal Combos:*\n"
+        + "\n".join(f"  {k}: Rs.{v:,}/pax" for k, v in pricing.MEAL_COMBOS.items() if v > 0)
+        + f"\n\n📎 Full menu: {config.WEBSITE_URL}/food",
+    )
+    _info_back(phone)
+
+
+def _info_pricing(phone: str):
+    whatsapp.send_text(
+        phone,
+        f"💰 *Pricing & Tariff — {config.PROPERTY_NAME}*\n\n"
+        f"*Rooms (per night):*\n"
+        f"  Family Suite:   Rs.{pricing.ROOM_RATES['Family Suite']:,} (up to 4 pax)\n"
+        f"  Dormitory Stay: Rs.{pricing.ROOM_RATES['Dormitory Stay']:,} (up to 6 pax)\n\n"
+        f"*Meals:* Rs.{pricing.MEAL_PRICES['Breakfast']:,} / Rs.{pricing.MEAL_PRICES['Lunch']:,} / Rs.{pricing.MEAL_PRICES['Dinner']:,} per person\n\n"
+        f"*Pickup Transport:*\n"
+        + "\n".join(f"  {k}: Rs.{v:,} base" for k, v in pricing.PICKUP_POINTS.items())
+        + f"\n\n{config.PAYMENT_INFO}\n\n"
+        f"📎 More: {config.WEBSITE_URL}/pricing",
+    )
+    _info_back(phone)
+
+
+def _act_price_str(v: dict) -> str:
+    return "Free" if v["free"] else f"Rs.{v['price']:,}/{v['per']}"
 
 
 def _info_activities(phone: str):
-    paid = "\n".join(f"  {k}: Rs.{v:,}/pax" for k, v in pricing.ACTIVITIES.items())
-    free = "  " + "  |  ".join(pricing.GAMES_FREE)
+    d1 = "\n".join(
+        f"  {_act_price_str(v)} — {k} ({v['duration']})"
+        for k, v in pricing.ACTIVITIES_D1.items()
+    )
+    d2 = "\n".join(
+        f"  {_act_price_str(v)} — {k} ({v['duration']})"
+        + (f" _{v.get('note','')}_ " if v.get("note") else "")
+        for k, v in pricing.ACTIVITIES_D2.items()
+    )
     whatsapp.send_text(
         phone,
-        f"*Activities & Games at {config.PROPERTY_NAME}*\n\n"
-        f"*Paid Activities:*\n{paid}\n"
-        f"_(Bonfire Evening is per group, not per pax)_\n\n"
-        f"*Free Games (complimentary):*\n{free}\n\n"
-        "_Activities subject to availability & season._",
+        f"🎯 *Activities — {config.PROPERTY_NAME}*\n\n"
+        f"*Day 1 (On-Farm):*\n{d1}\n\n"
+        f"*Day 2 (Off-Farm / Outdoor):*\n{d2}\n\n"
+        f"📎 Full info: {config.WEBSITE_URL}/activities",
     )
-    _info_back_buttons(phone)
+    _info_back(phone)
 
 
 def _info_transport(phone: str):
-    pickup = "\n".join(f"  {k}: Rs.{v:,}" for k, v in pricing.TRANSPORT.items())
-    local  = "\n".join(f"  {k}: Rs.{v:,}/day" for k, v in pricing.INTERNAL_TRANSPORT.items())
+    pts = "\n".join(f"  {k}: Rs.{v:,} base" for k, v in pricing.PICKUP_POINTS.items())
     whatsapp.send_text(
         phone,
-        f"*Transport Options*\n\n"
-        f"*Pickup from Station / Airport:*\n{pickup}\n\n"
-        f"*Local Vehicle during Stay:*\n{local}\n\n"
+        f"🚗 *Transport & Location — {config.PROPERTY_NAME}*\n\n"
+        f"*Address:* {config.PROPERTY_ADDRESS}\n"
+        f"*GPS:* {config.PROPERTY_GPS}\n\n"
+        f"*Pickup Points (base rate):*\n{pts}\n\n"
+        f"*Vehicle Options:*\n"
+        f"  Sedan (4-seat) · MUV (6-7 seat) · Charter Bus (20+ pax)\n\n"
         f"*Contacts:*\n"
         f"  Driver: {config.TRANSPORT_CONTACT}\n"
-        f"  Tour Guide: {config.TOUR_GUIDE_CONTACT}\n"
-        f"  Sports / Adventure: {config.SPORTS_GUIDE_CONTACT}",
+        f"  Guide:  {config.TOUR_GUIDE_CONTACT}\n"
+        f"  Sports: {config.SPORTS_GUIDE_CONTACT}\n\n"
+        f"📎 Directions: {config.WEBSITE_URL}/location",
     )
-    _info_back_buttons(phone)
-
-
-def _info_medical(phone: str):
-    whatsapp.send_text(
-        phone,
-        f"*Medical & Emergency Information*\n\n"
-        f"Nearest Hospital: {config.NEAREST_HOSPITAL}\n"
-        f"Hospital Contact: {config.MEDICAL_CONTACT}\n"
-        f"Ambulance (free): {config.AMBULANCE}\n"
-        f"{config.PHARMACY_INFO}\n\n"
-        f"Basic first-aid kit available at reception.\n"
-        f"Our caretaker is available 24/7 for emergencies.",
-    )
-    _info_back_buttons(phone)
-
-
-def _info_carry(phone: str):
-    items = "\n".join(config.THINGS_TO_CARRY)
-    whatsapp.send_text(phone, f"*What to Carry — Packing Checklist*\n\n{items}")
-    _info_back_buttons(phone)
-
-
-def _info_climate(phone: str):
-    month = date.today().month
-    current = config.CLIMATE_BY_MONTH.get(month, "Expect warm, pleasant weather.")
-    # Show next 3 months
-    upcoming = ""
-    for offset in range(1, 4):
-        m = (month - 1 + offset) % 12 + 1
-        from datetime import date as _d
-        month_name = _d(2024, m, 1).strftime("%B")
-        upcoming += f"  *{month_name}:* {config.CLIMATE_BY_MONTH.get(m, '')}\n"
-    whatsapp.send_text(
-        phone,
-        f"*Climate Guide — {config.PROPERTY_NAME}*\n\n"
-        f"*This Month:* {current}\n\n"
-        f"*Coming Months:*\n{upcoming}\n"
-        "Type your travel month for a specific forecast!",
-    )
-    _info_back_buttons(phone)
+    _info_back(phone)
 
 
 def _info_photos(phone: str):
     whatsapp.send_text(
         phone,
-        f"*Farm Photos & Virtual Tour*\n\n"
-        "We'd love to share our photo gallery with you!\n\n"
-        f"Contact us directly:\n"
-        f"  {config.PROPERTY_CONTACT}\n\n"
-        "We'll send you photos of:\n"
-        "  Rooms & bathrooms\n"
-        "  Farm, gardens & orchards\n"
-        "  Dining area & outdoor spaces\n"
-        "  Pool & activity areas\n"
-        "  Sunrise / sunset views\n\n"
-        "_We're also on Google Maps — search for our property for guest photos._",
+        f"📸 *Farm Photos — {config.PROPERTY_NAME}*\n\n"
+        f"View our full photo gallery online:\n"
+        f"👉 {config.WEBSITE_URL}/gallery\n\n"
+        "Or contact us directly for photos:\n"
+        f"📞 {config.PROPERTY_CONTACT}\n"
+        f"📧 {config.SUPPORT_EMAIL}\n\n"
+        "We'll send photos of rooms, farm, dining, pool & surrounding nature! 🌿",
     )
-    _info_back_buttons(phone)
+    _info_back(phone)
+
+
+def _info_climate(phone: str):
+    month   = date.today().month
+    current = config.CLIMATE_BY_MONTH.get(month, "Expect pleasant weather.")
+    items   = "\n".join(config.THINGS_TO_CARRY)
+    whatsapp.send_text(
+        phone,
+        f"🌤️ *Climate & Packing — {config.PROPERTY_NAME}*\n\n"
+        f"*Current Month:* {current}\n\n"
+        f"*What to Pack:*\n{items}\n\n"
+        f"📎 Seasonal guide: {config.WEBSITE_URL}/climate",
+    )
+    _info_back(phone)
+
+
+def _info_medical(phone: str):
+    whatsapp.send_text(
+        phone,
+        f"🏥 *Medical & Safety — {config.PROPERTY_NAME}*\n\n"
+        f"Nearest Hospital: {config.NEAREST_HOSPITAL}\n"
+        f"Hospital Contact: {config.MEDICAL_CONTACT}\n"
+        f"Ambulance (free): {config.AMBULANCE}\n"
+        f"{config.PHARMACY_INFO}\n\n"
+        "First-aid kit available at the farm.\n"
+        "Caretaker on-site 24/7.",
+    )
+    _info_back(phone)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1201,69 +1130,66 @@ def _info_photos(phone: str):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _HANDLERS = {
-    "MAIN_MENU":              _main_menu,
     "ASK_NAME":               _ask_name,
-    "ASK_CLIENT_TYPE":        _ask_client_type,
-    "ASK_INTERESTS":          _ask_interests,
-    "ASK_ARRIVAL_MEDIUM":     _ask_arrival_medium,
-    "ASK_DATES":              _ask_dates,
+    "ASK_PATH":               _ask_path,
+    # booking
+    "ASK_EMAIL":              _ask_email,
+    "ASK_ADULTS":             _ask_adults,
+    "ASK_CHILDREN":           _ask_children,
+    "ASK_CHECKIN":            _ask_checkin,
+    "ASK_CHECKOUT":           _ask_checkout,
+    "ASK_SPECIAL_REQUESTS":   _ask_special_requests_input,
     "ASK_ROOM_TYPE":          _ask_room_type,
-    "ASK_ROOM_COUNT":         _ask_room_count,
-    "ASK_GUESTS":             _ask_guests,
-    "AVAILABILITY_RETRY":     _availability_retry,
-    "ASK_FOOD_PREFS":         _ask_food_prefs,
-    "ASK_MEAL_PLAN":          _ask_meal_plan,
-    "ASK_MEAL_LOCATION":      _ask_meal_location,
-    "ASK_ACTIVITIES":         _ask_activities,
-    "ASK_ACTIVITIES_DONE":    _ask_activities_done,
-    "ASK_PICKUP":             _ask_pickup,
-    "ASK_ARRIVAL_PORT":       _ask_arrival_port,
-    "ASK_INTERNAL_TRANSPORT": _ask_internal_transport,
-    "ASK_TRIP_PLANNING":      _ask_trip_planning,
+    "ROOM_UNAVAILABLE":       _room_unavailable,
+    "ASK_FOOD_PREF":          _ask_food_pref,
+    "ASK_VEG_COUNT":          _ask_veg_count,
+    "ASK_MEALS_D1":           _ask_meals_d1_input,
+    "ASK_MEALS_SUB":          _ask_meals_sub,
+    "ASK_ARRIVAL_MODE":       _ask_arrival_mode,
+    "ASK_VEHICLE_TYPE":       _ask_vehicle_type,
+    "ASK_ACTIVITIES_D1":      _ask_activities_d1,
+    "ASK_ACTIVITIES_D1_DONE": _ask_activities_d1_done,
+    "ASK_ACTIVITIES_D2":      _ask_activities_d2,
+    "ASK_ACTIVITIES_D2_DONE": _ask_activities_d2_done,
+    "SHOW_POLICY":            _handle_policy,
     "CONFIRM_BOOKING":        _confirm_booking,
+    # info
     "INFO_MENU":              _info_menu,
-    "INFO_BACK":              _info_back,
+    "INFO_BACK":              _handle_info_back,
 }
 
-_RESET_WORDS  = {"hi", "hello", "hey", "start", "restart"}
-_INFO_WORDS   = {"info", "information", "details", "property", "rooms",
-                 "facilities", "photos", "pictures", "policies", "rates",
-                 "price", "pricing", "activities", "transport"}
-_BOOK_WORDS   = {"book", "booking", "reserve", "reservation"}
+_RESET_WORDS = {"hi", "hello", "hey", "start", "restart"}
+_INFO_WORDS  = {"info", "explore", "menu", "details", "property"}
+_BOOK_WORDS  = {"book", "booking", "reserve"}
+_CALL_WORDS  = {"call", "contact", "help", "agent", "human"}
 
 
 def handle_message(phone: str, msg_type: str, content: str):
     content_lower = content.lower().strip()
 
-    # Reset on greeting
+    # Greeting → reset
     if content_lower in _RESET_WORDS:
         SESSIONS.pop(phone, None)
 
     s     = _session(phone)
     state = s["state"]
 
-    # Always show welcome on WELCOME state
+    # Initial welcome
     if state == "WELCOME":
         _welcome(phone)
         return
 
-    # Global keyword shortcuts
-    if content_lower in _INFO_WORDS:
+    # Global shortcuts
+    if content_lower in _CALL_WORDS:
+        _send_contact_info(phone)
+        return
+
+    if content_lower in _INFO_WORDS and state not in ("ASK_NAME", "ASK_PATH"):
         _show_info_menu(phone)
         return
 
-    if content_lower in _BOOK_WORDS:
-        if s.get("guest_name"):
-            whatsapp.send_text(
-                phone,
-                f"Welcome back, *{s['guest_name']}*! 😊\n\n"
-                "Please share your *check-in and check-out dates*:\n"
-                "Example: _4 June 2026 to 6 June 2026_",
-            )
-            _set_state(phone, "ASK_DATES")
-        else:
-            whatsapp.send_text(phone, "Let's get started! What is your *name*?")
-            _set_state(phone, "ASK_NAME")
+    if content_lower in _BOOK_WORDS and state not in ("ASK_NAME", "ASK_PATH"):
+        _start_booking(phone)
         return
 
     # Route to state handler
@@ -1273,5 +1199,6 @@ def handle_message(phone: str, msg_type: str, content: str):
     else:
         whatsapp.send_text(
             phone,
-            "Type *Hi* to start a new booking or *Info* to browse property details.",
+            f"Type *Hi* to start fresh, or *Menu* to browse property info.\n\n"
+            f"Need help? Type *Call* to reach our team.",
         )

@@ -1,6 +1,5 @@
 import os
 from dotenv import load_dotenv
-from datetime import date as _date
 
 load_dotenv()
 
@@ -11,97 +10,87 @@ VERIFY_TOKEN    = os.environ["VERIFY_TOKEN"]
 PORT            = int(os.getenv("PORT", 5000))
 
 # ── Property ──────────────────────────────────────────────────────────────────
-PROPERTY_NAME    = os.getenv("PROPERTY_NAME",    "Farmhouse Goa")
-PROPERTY_ADDRESS = os.getenv("PROPERTY_ADDRESS", "Farmhouse Road, South Goa, 403702")
-PROPERTY_GPS     = os.getenv("PROPERTY_GPS",     "https://maps.google.com/?q=15.3173,74.0837")
+PROPERTY_NAME    = "Mondkar Farm Stay"
+BOT_NAME         = "Mondy"
+WEBSITE_URL      = os.getenv("WEBSITE_URL",      "https://mondys.in")
+PROPERTY_ADDRESS = os.getenv("PROPERTY_ADDRESS", "Mondys Farm Stay, Sindhudurg, Maharashtra")
+PROPERTY_GPS     = os.getenv("PROPERTY_GPS",     "https://maps.google.com/?q=16.0,73.7")
 PROPERTY_CONTACT = os.getenv("PROPERTY_CONTACT", "+91-XXXXXXXXXX")
+SUPPORT_EMAIL    = os.getenv("SUPPORT_EMAIL",    "stay@mondys.in")
 
-# ── Facilities ────────────────────────────────────────────────────────────────
+# ── Check-in / out ────────────────────────────────────────────────────────────
+CHECK_IN_TIME  = "1:00 PM"
+CHECK_OUT_TIME = "12:00 PM (Noon)"
+
+# ── Facilities (for Info menu) ────────────────────────────────────────────────
 FACILITIES = {
-    "TV":             os.getenv("FAC_TV",       "Yes — in all rooms"),
-    "AC":             os.getenv("FAC_AC",       "Yes — in all rooms"),
-    "Geyser":         os.getenv("FAC_GEYSER",   "Yes — all bathrooms"),
-    "WiFi":           os.getenv("FAC_WIFI",     "Yes — high-speed broadband"),
-    "Meals":          os.getenv("FAC_MEALS",    "Yes — BLD available on request"),
-    "Drinking Water": os.getenv("FAC_WATER",    "Yes — RO purified water"),
-    "Power Backup":   os.getenv("FAC_POWER",    "Yes — diesel generator"),
-    "Toiletry Kit":   os.getenv("FAC_TOILETRY", "Yes — complimentary"),
-    "Laundry":        os.getenv("FAC_LAUNDRY",  "Yes — on request (₹100/load)"),
-    "Caretaker":      os.getenv("FAC_CARETAKER","Yes — 24/7 on premises"),
-    "Cook":           os.getenv("FAC_COOK",     "Yes — on request"),
-    "Swimming Pool":  os.getenv("FAC_POOL",     "Yes — seasonal (Oct–May)"),
-    "Bonfire Area":   os.getenv("FAC_BONFIRE",  "Yes — on request"),
-    "Parking":        os.getenv("FAC_PARKING",  "Yes — ample free parking"),
+    "Rooms":          "Family Suite (4 pax) · Dormitory Stay (6 pax)",
+    "Bathrooms":      "Attached — Western style",
+    "AC":             "Available on request",
+    "Meals":          "Veg & Non-Veg — freshly prepared",
+    "Swimming Pool":  "Seasonal (complimentary for guests)",
+    "WiFi":           "Available in common areas",
+    "Parking":        "Free on-site parking",
+    "Bonfire/Gazebo": "Available seasonally",
+    "Caretaker":      "24/7 on premises",
+    "Power Backup":   "Generator available",
 }
 
-# ── Room Details ──────────────────────────────────────────────────────────────
-ROOM_DETAILS = [
-    {"name": "Room 1", "type": "Deluxe",   "bathroom": "Attached • Western",       "ac": True,  "tv": True,  "pax": 3, "rate": 3000},
-    {"name": "Room 2", "type": "Deluxe",   "bathroom": "Attached • Western",       "ac": True,  "tv": True,  "pax": 3, "rate": 3000},
-    {"name": "Room 3", "type": "Standard", "bathroom": "Attached • Western",       "ac": True,  "tv": True,  "pax": 3, "rate": 2500},
-    {"name": "Room 4", "type": "Standard", "bathroom": "Shared • Indian + Western","ac": False, "tv": False, "pax": 3, "rate": 2000},
-]
-TOTAL_ROOMS = len(ROOM_DETAILS)
-
 # ── Policies ──────────────────────────────────────────────────────────────────
-CHECK_IN_TIME    = os.getenv("CHECK_IN_TIME",   "12:00 PM")
-CHECK_OUT_TIME   = os.getenv("CHECK_OUT_TIME",  "11:00 AM")
-NOISE_POLICY     = os.getenv("NOISE_POLICY",    "Quiet hours 10 PM – 7 AM. No loud music after 10 PM. Bonfire by midnight.")
-PET_POLICY       = os.getenv("PET_POLICY",      "Pets allowed (small/medium dogs only). Please inform in advance.")
-CHILD_POLICY     = os.getenv("CHILD_POLICY",    "Children warmly welcome! Kids' zone, animal feeding & supervised walks available.")
-SENIOR_POLICY    = os.getenv("SENIOR_POLICY",   "Senior-friendly: ground-floor rooms on request, ramps & 24/7 caretaker.")
-DISABLED_POLICY  = os.getenv("DISABLED_POLICY", "Wheelchair-accessible rooms on request. Please mention at booking.")
-EXTRA_PERSON_FEE = int(os.getenv("EXTRA_PERSON_FEE", "500"))
+CANCELLATION_POLICY = (
+    "50% advance at time of booking.\n"
+    "50% refund if cancelled 7+ days before check-in.\n"
+    "Zero refund within 7 days of check-in.\n"
+    "Partial cancellations allowed (by days / rooms / guests)."
+)
+ADVANCE_PERCENT = 50
 
 # ── Medical ───────────────────────────────────────────────────────────────────
-NEAREST_HOSPITAL = os.getenv("NEAREST_HOSPITAL", "Hospicio Hospital, Margao — 18 km (24/7)")
-MEDICAL_CONTACT  = os.getenv("MEDICAL_CONTACT",  "+91-832-2705664")
+NEAREST_HOSPITAL = os.getenv("NEAREST_HOSPITAL", "District Hospital, Sindhudurg — 12 km")
+MEDICAL_CONTACT  = os.getenv("MEDICAL_CONTACT",  "+91-XXXXXXXXXX")
 AMBULANCE        = os.getenv("AMBULANCE",         "108 (free national ambulance)")
-PHARMACY_INFO    = os.getenv("PHARMACY_INFO",     "Pharmacy 3 km away. First-aid kit on premises.")
+PHARMACY_INFO    = os.getenv("PHARMACY_INFO",     "Pharmacy 2 km away. First-aid kit on premises.")
 
-# ── Transport Contacts ────────────────────────────────────────────────────────
-TRANSPORT_CONTACT    = os.getenv("TRANSPORT_CONTACT",    "+91-XXXXXXXXXX (Kumar — Driver)")
-TOUR_GUIDE_CONTACT   = os.getenv("TOUR_GUIDE_CONTACT",   "+91-XXXXXXXXXX (Raju — Certified Guide)")
-SPORTS_GUIDE_CONTACT = os.getenv("SPORTS_GUIDE_CONTACT", "+91-XXXXXXXXXX (Priya — Adventure & Sports)")
+# ── Transport contacts ────────────────────────────────────────────────────────
+TRANSPORT_CONTACT    = os.getenv("TRANSPORT_CONTACT",    "+91-XXXXXXXXXX (Farm Driver)")
+TOUR_GUIDE_CONTACT   = os.getenv("TOUR_GUIDE_CONTACT",   "+91-XXXXXXXXXX (Local Guide)")
+SPORTS_GUIDE_CONTACT = os.getenv("SPORTS_GUIDE_CONTACT", "+91-XXXXXXXXXX (Water Sports)")
 
 # ── Climate by month ──────────────────────────────────────────────────────────
 CLIMATE_BY_MONTH = {
-    1:  "☀️ Cool & dry ~25°C. Best sightseeing weather. Light jacket for evenings.",
-    2:  "☀️ Warm & pleasant ~27°C. Great beach weather. Sunscreen recommended.",
-    3:  "🌡️ Hot ~31°C. Morning activities preferred. Light cottons & hat essential.",
-    4:  "🌡️ Very hot ~34°C. Avoid midday outdoors. Carry ORS & lots of water.",
-    5:  "🌦️ Hot & humid ~33°C. Pre-monsoon showers. Umbrella handy.",
-    6:  "🌧️ Monsoon begins ~28°C. Heavy rains. Waterproof gear essential.",
-    7:  "🌧️ Peak monsoon ~27°C. Lush greenery & waterfalls. Rain gear mandatory.",
-    8:  "🌧️ Monsoon ~27°C. Waterfalls at peak. Waterproof shoes a must.",
-    9:  "🌦️ Late monsoon ~28°C. Occasional showers. Good for nature & birdwatching.",
-    10: "🌤️ Post-monsoon ~29°C. Fresh landscapes. All activities open. Excellent!",
-    11: "☀️ Pleasant & festive ~28°C. Festival season — book early!",
-    12: "☀️ Cool & festive ~26°C. Peak season. High demand — advance booking advised.",
+    1:  "☀️ Cool & dry ~23°C. Perfect for all outdoor activities.",
+    2:  "☀️ Warm ~25°C. Ideal for beach, trekking & farm activities.",
+    3:  "🌡️ Hot ~30°C. Morning activities recommended. Stay hydrated.",
+    4:  "🌡️ Hot ~33°C. Avoid afternoon outdoors. Light clothing essential.",
+    5:  "🌦️ Pre-monsoon ~32°C. Occasional showers. Umbrella handy.",
+    6:  "🌧️ Monsoon begins ~28°C. Lush green farm. Rain gear needed.",
+    7:  "🌧️ Heavy monsoon ~27°C. Waterfalls & green trails. Rain gear mandatory.",
+    8:  "🌧️ Peak monsoon ~27°C. Farm at its most lush. Waterproof shoes a must.",
+    9:  "🌦️ Late monsoon ~28°C. Farm at its most beautiful!",
+    10: "🌤️ Post-monsoon ~29°C. All activities open. Excellent weather.",
+    11: "☀️ Pleasant ~27°C. Perfect season — book early!",
+    12: "☀️ Cool & festive ~24°C. Peak season. Advance booking advised.",
 }
 
 # ── Things to carry ───────────────────────────────────────────────────────────
 THINGS_TO_CARRY = [
-    "🔦 Torch / Flashlight (night walks)",
-    "🦟 Mosquito repellent — cream or spray",
-    "👟 Comfortable walking / trekking shoes",
-    "🥾 Gumboots if visiting Jun–Sep",
-    "🧢 Cap / Hat + sunglasses",
+    "🔦 Torch (for night walks & bonfires)",
+    "🦟 Mosquito repellent",
+    "👟 Comfortable walking shoes / gumboots (monsoon)",
+    "🧢 Cap + sunglasses",
     "☂️ Umbrella or rain poncho",
-    "🕶️ Sunscreen SPF 50+",
-    "💊 Personal medication & allergy details",
+    "💊 Personal medication",
     "🪪 Govt. Photo ID (mandatory at check-in)",
+    "📷 Camera — stunning farm & nature spots!",
     "💧 Reusable water bottle",
-    "📷 Camera — great photography spots!",
 ]
 
-# ── Payment info ──────────────────────────────────────────────────────────────
+# ── Payment ───────────────────────────────────────────────────────────────────
 PAYMENT_INFO = (
     "💳 *Payment Methods Accepted*\n"
     "  ✅ UPI / QR Code\n"
-    "  ✅ NEFT / Bank Transfer\n"
-    "  ✅ Credit Card (Visa/MC/RuPay)\n"
-    "  ✅ Debit Card\n"
-    "  ✅ Cash on arrival\n\n"
-    "_Advance: 50% at booking. Balance: at check-in._"
+    "  ✅ Credit / Debit Card\n"
+    "  ✅ Cash on arrival\n"
+    "  ✅ Bank Transfer\n\n"
+    f"_Advance: {ADVANCE_PERCENT}% at booking. Balance: at check-in._"
 )
