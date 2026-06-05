@@ -8,6 +8,12 @@ ROOM_PAX_LIMIT = {
     "Dormitory Stay": 6,
 }
 
+# Total rooms available of each type at the property
+ROOM_INVENTORY = {
+    "Family Suite":   2,
+    "Dormitory Stay": 2,
+}
+
 # ── Meal prices (per person per meal) ─────────────────────────────────────────
 MEAL_PRICES = {
     "Breakfast": 200,
@@ -81,8 +87,9 @@ def calculate_total(
     activities_d2: list,
     pickup_point:  "str | None",
     vehicle_type:  "str | None",
+    room_count:    int = 1,
 ) -> dict:
-    room_cost      = ROOM_RATES.get(room_type, 0) * nights
+    room_cost      = ROOM_RATES.get(room_type, 0) * nights * room_count
     meal_d1_cost   = MEAL_COMBOS.get(meal_plan_d1,  0) * pax
     meal_sub_cost  = MEAL_COMBOS.get(meal_plan_sub, 0) * pax * max(nights - 1, 0)
     meal_cost      = meal_d1_cost + meal_sub_cost

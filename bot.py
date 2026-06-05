@@ -35,6 +35,7 @@ def _session(phone: str) -> dict:
             "special_requests":  None,
             # room
             "room_type":         None,
+            "room_count":        1,
             # food
             "food_preference":   None,
             "veg_count":         0,
@@ -336,26 +337,93 @@ def _ask_room_type(phone: str, content: str):
         whatsapp.send_text(phone, "Please tap one of the room options above.")
         return
 
-    s    = _session(phone)
-    pax  = _pax(phone)
-    limit = pricing.ROOM_PAX_LIMIT.get(room, 6)
+    _set(phone, "room_type", room)
+    _ask_room_count_step(phone)
 
-    if pax > limit:
+
+def _ask_room_count_step(phone: str):
+    s         = _session(phone)
+    room      = s["room_type"]
+    pax       = _pax(phone)
+    limit     = pricing.ROOM_PAX_LIMIT.get(room, 6)
+    inventory = pricing.ROOM_INVENTORY.get(room, 1)
+
+    # Minimum rooms needed to fit the group
+    import math
+    min_rooms = math.ceil(pax / limit)
+
+    if min_rooms > inventory:
         whatsapp.send_text(
             phone,
-            f"The *{room}* accommodates up to *{limit} guests*. "
-            f"Your group has *{pax}*.\n\nPlease select a different room or adjust guest count.",
+            f"😔 Sorry, we only have *{inventory} {room}(s)* which can accommodate "
+            f"up to *{inventory * limit} guests*. Your group has *{pax}*.\n\n"
+            "Please try the other room type or contact us for large groups.",
         )
-        return
-
-    _set(phone, "room_type", room)
-
-    # Check availability
-    if not database.check_availability(s["check_in"], s["check_out"], room):
+        # Show room type selector again
         whatsapp.send_buttons(
             phone,
-            f"😔 Sorry! *{room}* is not available for *{s['check_in']} → {s['check_out']}*.\n\n"
-            "Would you like to try different dates or the other room type?",
+            "Choose a room type:",
+            [
+                {"id": "room_suite", "title": "Family Suite"},
+                {"id": "room_dorm",  "title": "Dormitory Stay"},
+            ],
+        )
+        _state(phone, "ASK_ROOM_TYPE")
+        return
+
+    rows = []
+    for n in range(1, inventory + 1):
+        capacity = n * limit
+        suffix   = "s" if n > 1 else ""
+        note     = " ← minimum for your group" if n == min_rooms and min_rooms > 1 else ""
+        rows.append({
+            "id":          f"rc_{n}",
+            "title":       f"{n} Room{suffix}",
+            "description": f"Up to {capacity} guests{note}",
+        })
+
+    whatsapp.send_list(
+        phone,
+        f"How many *{room}s* would you like to book?\n"
+        f"_(Your group: {pax} guests · {limit} guests/room)_",
+        "Select",
+        [{"title": f"{room} — Count", "rows": rows}],
+    )
+    _state(phone, "ASK_ROOM_COUNT")
+
+
+def _ask_room_count(phone: str, content: str):
+    if not content.startswith("rc_") or not content[3:].isdigit():
+        whatsapp.send_text(phone, "Please select from the list.")
+        return
+
+    count = int(content[3:])
+    s     = _session(phone)
+    room  = s["room_type"]
+    pax   = _pax(phone)
+    limit = pricing.ROOM_PAX_LIMIT.get(room, 6)
+
+    if count * limit < pax:
+        whatsapp.send_text(
+            phone,
+            f"*{count} room(s)* can accommodate up to *{count * limit} guests*, "
+            f"but your group has *{pax}*. Please select more rooms.",
+        )
+        _ask_room_count_step(phone)
+        return
+
+    _set(phone, "room_count", count)
+
+    # Check availability
+    if not database.check_availability(s["check_in"], s["check_out"], room, count):
+        avail = _rooms_available(s["check_in"], s["check_out"], room)
+        if avail == 0:
+            msg = f"😔 *{room}* is fully booked for those dates."
+        else:
+            msg = f"😔 Only *{avail} {room}(s)* available for those dates (you requested {count})."
+        whatsapp.send_buttons(
+            phone,
+            msg + "\n\nWhat would you like to do?",
             [
                 {"id": "retry_dates", "title": "Different Dates"},
                 {"id": "retry_room",  "title": "Other Room Type"},
@@ -364,10 +432,38 @@ def _ask_room_type(phone: str, content: str):
         _state(phone, "ROOM_UNAVAILABLE")
         return
 
+    _proceed_to_food(phone)
+
+
+def _rooms_available(check_in: str, check_out: str, room_type: str) -> int:
+    """How many rooms of this type are still free for the dates."""
+    from pricing import ROOM_INVENTORY
+    import psycopg2
+    total = ROOM_INVENTORY.get(room_type, 1)
+    try:
+        conn = database._connect()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT COALESCE(SUM(room_count), 0) FROM bookings
+                WHERE status != 'cancelled' AND room_type = %s
+                  AND check_in < %s AND check_out > %s
+            """, (room_type, check_out, check_in))
+            booked = cur.fetchone()[0]
+        conn.close()
+        return max(0, total - booked)
+    except Exception:
+        return 0
+
+
+def _proceed_to_food(phone: str):
+    s    = _session(phone)
+    room = s["room_type"]
+    rc   = s["room_count"]
+    label = f"{rc}× {room}" if rc > 1 else room
     # ── Step 4: Meal Planning ─────────────────────────────────────────────────
     whatsapp.send_list(
         phone,
-        f"*{room}* is available ✅\n\n"
+        f"*{label}* — available ✅\n\n"
         "What are your *food preferences*?",
         "Select",
         [{"title": "Dietary Preference", "rows": [
@@ -384,21 +480,10 @@ def _room_unavailable(phone: str, content: str):
         whatsapp.send_text(phone, "Please share new check-in & check-out dates:")
         _state(phone, "ASK_CHECKIN")
     elif content == "retry_room":
-        other = "Dormitory Stay" if _session(phone).get("room_type") == "Family Suite" else "Family Suite"
-        s = _session(phone)
-        limit = pricing.ROOM_PAX_LIMIT.get(other, 6)
-        pax = _pax(phone)
-        if pax > limit:
-            whatsapp.send_text(phone, f"The *{other}* also has a limit of {limit} guests. Please try different dates.")
-            _state(phone, "ASK_CHECKIN")
-            return
+        s     = _session(phone)
+        other = "Dormitory Stay" if s.get("room_type") == "Family Suite" else "Family Suite"
         _set(phone, "room_type", other)
-        if not database.check_availability(s["check_in"], s["check_out"], other):
-            whatsapp.send_text(phone, "😔 Unfortunately both room types are booked for those dates. Please try different dates.")
-            _state(phone, "ASK_CHECKIN")
-        else:
-            _set(phone, "room_type", other)
-            _ask_food_pref_step(phone)
+        _ask_room_count_step(phone)
     else:
         whatsapp.send_text(phone, "Please tap one of the options.")
 
@@ -748,6 +833,7 @@ def _show_summary(phone: str):
         activities_d2 = s["activities_d2"],
         pickup_point  = s["pickup_point"],
         vehicle_type  = s["vehicle_type"],
+        room_count    = s.get("room_count", 1),
     )
     SESSIONS[phone]["_totals"] = totals
 
@@ -774,7 +860,7 @@ def _show_summary(phone: str):
         f"*Check-in:*  {ci.strftime('%d %b %Y')}  {config.CHECK_IN_TIME}\n"
         f"*Check-out:* {co.strftime('%d %b %Y')}  {config.CHECK_OUT_TIME}\n"
         f"*Nights:*    {s['nights']}\n\n"
-        f"*Room:*     {s['room_type']}\n"
+        f"*Room:*     {s.get('room_count',1)}× {s['room_type']}\n"
         f"*Food:*     {s['food_preference']} "
         f"({s['veg_count']} Veg / {s['nv_count']} Non-Veg)\n"
         f"*Meals:*    {meals}\n\n"
@@ -833,6 +919,7 @@ def _confirm_booking(phone: str, content: str):
         nights           = s["nights"],
         special_requests = s.get("special_requests"),
         room_type        = s["room_type"],
+        room_count       = s.get("room_count", 1),
         food_preference  = s["food_preference"],
         veg_count        = s["veg_count"],
         nv_count         = s["nv_count"],
@@ -856,7 +943,7 @@ def _confirm_booking(phone: str, content: str):
         f"*Booking Ref:* {ref}\n"
         f"*Name:* {s['guest_name']}\n"
         f"*Dates:* {s['check_in']} → {s['check_out']}\n"
-        f"*Room:* {s['room_type']}\n"
+        f"*Room:* {s.get('room_count',1)}× {s['room_type']}\n"
         f"*Total:* Rs.{totals.get('total',0):,}\n\n"
         f"{config.PAYMENT_INFO}\n\n"
         f"*Please pay the advance of Rs.{advance:,} to confirm your slot.*",
@@ -1140,6 +1227,7 @@ _HANDLERS = {
     "ASK_CHECKOUT":           _ask_checkout,
     "ASK_SPECIAL_REQUESTS":   _ask_special_requests_input,
     "ASK_ROOM_TYPE":          _ask_room_type,
+    "ASK_ROOM_COUNT":         _ask_room_count,
     "ROOM_UNAVAILABLE":       _room_unavailable,
     "ASK_FOOD_PREF":          _ask_food_pref,
     "ASK_VEG_COUNT":          _ask_veg_count,

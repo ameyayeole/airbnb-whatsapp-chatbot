@@ -15,34 +15,45 @@ load_dotenv()
 DATABASE_URL = os.environ["DATABASE_URL"]
 
 
-def _resolve_ipv6(url: str) -> str:
-    """
-    libpq (the C layer in psycopg2) only resolves IPv4 A-records.
-    Supabase free-tier projects are IPv6-only by default.
-    Python's socket.getaddrinfo() resolves AAAA records correctly,
-    so we pre-resolve the hostname and substitute the literal IPv6
-    address (bracket-enclosed, as RFC 3986 requires).
-    """
-    # Match host in postgresql://user:pass@HOST:port/db
-    m = re.search(r"@([^:/\[]+)(:\d+)", url)
-    if not m:
-        return url
-    hostname = m.group(1)
-    try:
-        addrs = socket.getaddrinfo(hostname, None, socket.AF_INET6, socket.SOCK_STREAM)
-        if addrs:
-            ipv6 = addrs[0][4][0]
-            url  = url.replace(f"@{hostname}", f"@[{ipv6}]")
-    except Exception:
-        pass  # hostname might already be IPv4 or direct IP — leave as-is
-    return url
-
-
-_RESOLVED_URL = _resolve_ipv6(DATABASE_URL)
-
-
 def _connect():
-    return psycopg2.connect(_RESOLVED_URL)
+    """
+    Try the DATABASE_URL as-is first (works when the server has IPv4 or
+    a pooler URL is configured).  If libpq can't resolve the hostname
+    (Supabase free-tier direct connections are IPv6-only), fall back to
+    resolving the AAAA record with Python's socket and substituting the
+    literal IPv6 address — which works on IPv6-capable hosts (e.g. macOS).
+    On IPv4-only hosts (e.g. Render free tier) the caller will get a clear
+    error pointing to the pooler fix.
+    """
+    try:
+        return psycopg2.connect(DATABASE_URL)
+    except psycopg2.OperationalError as first_err:
+        err_str = str(first_err)
+        if "could not translate host name" not in err_str:
+            raise  # real connection error — re-raise immediately
+
+        # DNS failed → try IPv6 resolution via Python's socket
+        m = re.search(r"@([^:/\[]+)(:\d+)", DATABASE_URL)
+        if not m:
+            raise
+        hostname = m.group(1)
+        try:
+            addrs = socket.getaddrinfo(hostname, None, socket.AF_INET6, socket.SOCK_STREAM)
+            if not addrs:
+                raise first_err
+            ipv6 = addrs[0][4][0]
+            ipv6_url = DATABASE_URL.replace(f"@{hostname}", f"@[{ipv6}]")
+            return psycopg2.connect(ipv6_url)
+        except psycopg2.OperationalError as ipv6_err:
+            if "Network is unreachable" in str(ipv6_err) or "Connection refused" in str(ipv6_err):
+                raise psycopg2.OperationalError(
+                    "Cannot reach Supabase via IPv4 or IPv6.\n"
+                    "Fix: set DATABASE_URL to the Supabase *pooler* URL.\n"
+                    "Dashboard → Settings → Database → Connection pooling → copy URI."
+                ) from ipv6_err
+            raise ipv6_err
+        except Exception:
+            raise first_err
 
 
 def init_db():
@@ -75,6 +86,7 @@ def init_db():
                     activities_d2    TEXT,
                     total_amount     INTEGER,
                     advance_amount   INTEGER,
+                    room_count       INTEGER DEFAULT 1,
                     status           TEXT DEFAULT 'pending_payment',
                     created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -98,6 +110,7 @@ def init_db():
                 ("activities_d1",    "TEXT"),
                 ("activities_d2",    "TEXT"),
                 ("advance_amount",   "INTEGER"),
+                ("room_count",       "INTEGER DEFAULT 1"),
             ]
             for col, defn in new_cols:
                 cur.execute(f"ALTER TABLE bookings ADD COLUMN IF NOT EXISTS {col} {defn}")
@@ -107,19 +120,22 @@ def init_db():
         conn.close()
 
 
-def check_availability(check_in: str, check_out: str, room_type: str) -> bool:
-    """Return True if the room type has no confirmed booking in this date range."""
+def check_availability(check_in: str, check_out: str, room_type: str, rooms_requested: int = 1) -> bool:
+    """Return True if rooms_requested of room_type are available for the date range."""
+    from pricing import ROOM_INVENTORY
+    total_inventory = ROOM_INVENTORY.get(room_type, 1)
     conn = _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT COUNT(*) FROM bookings
+                SELECT COALESCE(SUM(room_count), 0) FROM bookings
                 WHERE  status    != 'cancelled'
                   AND  room_type  = %s
                   AND  check_in   < %s
                   AND  check_out  > %s
             """, (room_type, check_out, check_in))
-            return cur.fetchone()[0] == 0
+            already_booked = cur.fetchone()[0]
+            return (already_booked + rooms_requested) <= total_inventory
     finally:
         conn.close()
 
@@ -135,6 +151,7 @@ def create_booking(
     nights:          int,
     special_requests:"str | None",
     room_type:       str,
+    room_count:      int,
     food_preference: str,
     veg_count:       int,
     nv_count:        int,
@@ -155,18 +172,18 @@ def create_booking(
             cur.execute("""
                 INSERT INTO bookings
                     (phone, guest_name, email, adults, children,
-                     check_in, check_out, nights, special_requests, room_type,
+                     check_in, check_out, nights, special_requests, room_type, room_count,
                      food_preference, veg_count, nv_count,
                      meal_plan_d1, meal_plan_sub,
                      arrival_mode, pickup_point, vehicle_type,
                      activities_d1, activities_d2,
                      total_amount, advance_amount)
                 VALUES
-                    (%s,%s,%s,%s,%s, %s,%s,%s,%s,%s, %s,%s,%s, %s,%s, %s,%s,%s, %s,%s, %s,%s)
+                    (%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s, %s,%s,%s, %s,%s, %s,%s,%s, %s,%s, %s,%s)
                 RETURNING id
             """, (
                 phone, guest_name, email, adults, children,
-                check_in, check_out, nights, special_requests, room_type,
+                check_in, check_out, nights, special_requests, room_type, room_count,
                 food_preference, veg_count, nv_count,
                 meal_plan_d1, meal_plan_sub,
                 arrival_mode, pickup_point, vehicle_type,
