@@ -67,13 +67,15 @@ VEHICLE_TYPES = {
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _activity_cost(activities: list, source: dict, pax: int) -> int:
+def _activity_cost(activities, source: dict, pax: int) -> int:
+    """activities can be list[str] (legacy) or dict {name: count}."""
     total = 0
-    for name in activities:
+    items = activities.items() if isinstance(activities, dict) else [(a, pax) for a in activities]
+    for name, count in items:
         info  = source.get(name, {})
         price = info.get("price", 0)
         per   = info.get("per", "group")
-        total += price * pax if per in ("person", "head") else price
+        total += price * count if per in ("person", "head", "boat") else price
     return total
 
 

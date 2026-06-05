@@ -46,9 +46,11 @@ def _session(phone: str) -> dict:
             "arrival_mode":      None,
             "pickup_point":      None,
             "vehicle_type":      None,
-            # activities
-            "activities_d1":     [],
-            "activities_d2":     [],
+            # activities (dict: name → guest/unit count)
+            "activities_d1":     {},
+            "activities_d2":     {},
+            "_pending_act":      None,   # temp while asking count
+            "_pending_act_day":  None,   # "d1" or "d2"
             # internal
             "_totals":           None,
         }
@@ -144,6 +146,140 @@ def _parse_nights(text: str) -> "int | None":
     """Parse '2 nights' → 2."""
     m = re.search(r"(\d+)\s*nights?", text.lower())
     return int(m.group(1)) if m else None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ── BACK NAVIGATION ───────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_BACK_ROW  = {"id": "go_back", "title": "⬅ Go Back",    "description": "Return to previous step"}
+_BACK_BTN  = {"id": "go_back", "title": "⬅ Back"}
+
+
+def _show_path_buttons(phone: str):
+    s = _session(phone)
+    whatsapp.send_buttons(
+        phone,
+        f"What would you like to do, *{s.get('guest_name','there')}*?",
+        [{"id": "path_explore", "title": "Explore the Farm"},
+         {"id": "path_book",    "title": "Book a Stay"}],
+    )
+    _state(phone, "ASK_PATH")
+
+
+def _show_email_prompt(phone: str):
+    s = _session(phone)
+    whatsapp.send_text(
+        phone,
+        f"Let's get your booking started, *{s['guest_name']}*! 🎉\n\n"
+        "What's your *email address*? _(Type 'skip' to skip · 'back' to go back)_",
+    )
+    _state(phone, "ASK_EMAIL")
+
+
+def _show_adults_prompt(phone: str):
+    whatsapp.send_text(phone,
+        "How many *adults* will be staying?\nEnter a number:\n_(Type 'back' to go back)_")
+    _state(phone, "ASK_ADULTS")
+
+
+def _show_children_prompt(phone: str):
+    whatsapp.send_text(phone,
+        "How many *children* will be coming?\n_(Enter 0 if none · 'back' to go back)_")
+    _state(phone, "ASK_CHILDREN")
+
+
+def _show_checkin_prompt(phone: str):
+    whatsapp.send_text(
+        phone,
+        "What is your *check-in date*? 📅\n\n"
+        "Examples:\n• _10 June 2026_\n• _10/06/2026_\n\n"
+        "_(Or send a range: '10 June to 12 June' · 'back' to go back)_",
+    )
+    _state(phone, "ASK_CHECKIN")
+
+
+def _show_special_requests_prompt(phone: str):
+    s  = _session(phone)
+    ci = date.fromisoformat(s["check_in"])
+    co = date.fromisoformat(s["check_out"])
+    whatsapp.send_text(
+        phone,
+        f"*{ci.strftime('%d %b')} → {co.strftime('%d %b %Y')}* "
+        f"({s['nights']} night{'s' if s['nights']>1 else ''}) ✅\n\n"
+        "Do you have any *special requests*?\n"
+        "_(e.g. anniversary setup, early check-in — or type 'none' · 'back' to go back)_",
+    )
+    _state(phone, "ASK_SPECIAL_REQUESTS")
+
+
+def _show_room_type_prompt(phone: str):
+    whatsapp.send_buttons(
+        phone,
+        "Which room type would you like? 🏡\n\n"
+        "• *Family Suite* — private, up to 4 guests\n"
+        "• *Dormitory Stay* — shared-style, up to 6 guests",
+        [
+            {"id": "room_suite", "title": "Family Suite"},
+            {"id": "room_dorm",  "title": "Dormitory Stay"},
+            _BACK_BTN,
+        ],
+    )
+    _state(phone, "ASK_ROOM_TYPE")
+
+
+def _show_meals_sub_prompt(phone: str):
+    pax = _pax(phone)
+    whatsapp.send_list(
+        phone,
+        f"Which meals on *subsequent days* (Day 2+)? 🍽️\n_Per person · {pax} guests_",
+        "Choose",
+        [{"title": "Subsequent Days Plan", "rows": [
+            {"id": "ms_bld","title": "All Meals (BLD)",  "description": f"Rs.{pricing.MEAL_COMBOS['All Meals (BLD)']:,}/pax"},
+            {"id": "ms_bd", "title": "Breakfast+Dinner", "description": f"Rs.{pricing.MEAL_COMBOS['Breakfast+Dinner']:,}/pax"},
+            {"id": "ms_ld", "title": "Lunch+Dinner",     "description": f"Rs.{pricing.MEAL_COMBOS['Lunch+Dinner']:,}/pax"},
+            {"id": "ms_b",  "title": "Breakfast Only",   "description": f"Rs.{pricing.MEAL_COMBOS['Breakfast Only']:,}/pax"},
+            {"id": "ms_d",  "title": "Dinner Only",      "description": f"Rs.{pricing.MEAL_COMBOS['Dinner Only']:,}/pax"},
+            {"id": "ms_no", "title": "No Meals",         "description": "Self-arranged"},
+            _BACK_ROW,
+        ]}],
+    )
+    _state(phone, "ASK_MEALS_SUB")
+
+
+def _back(phone: str):
+    """Navigate to the previous step based on current state."""
+    s     = _session(phone)
+    state = s["state"]
+
+    go = {
+        "ASK_EMAIL":              _show_path_buttons,
+        "ASK_ADULTS":             _show_email_prompt,
+        "ASK_CHILDREN":           _show_adults_prompt,
+        "ASK_CHECKIN":            _show_children_prompt,
+        "ASK_CHECKOUT":           _show_checkin_prompt,
+        "ASK_SPECIAL_REQUESTS":   _show_checkin_prompt,
+        "ASK_ROOM_TYPE":          _show_special_requests_prompt,
+        "ASK_ROOM_COUNT":         _show_room_type_prompt,
+        "ASK_FOOD_PREF":          _ask_room_count_step,
+        "ASK_VEG_COUNT":          _ask_food_pref_step,
+        "ASK_MEALS_D1":           _ask_food_pref_step,
+        "ASK_MEALS_SUB":          _ask_meals_d1,
+        "ASK_ARRIVAL_MODE":       lambda p: (_ask_meals_d1(p) if s["nights"] <= 1 else _show_meals_sub_prompt(p)),
+        "ASK_VEHICLE_TYPE":       _ask_arrival_step,
+        "ASK_ACTIVITIES_D1":      lambda p: (_ask_arrival_step(p) if not s.get("vehicle_type") else _ask_vehicle_type_step(p)),
+        "ASK_ACTIVITY_COUNT":     lambda p: (_ask_activities_d2_step(p) if _session(p).get("_pending_act_day") == "d2" else _ask_activities_d1_step(p)),
+        "ASK_ACTIVITIES_D2":      _ask_activities_d1_step,
+        "SHOW_POLICY":            _ask_activities_d2_step,
+        "CONFIRM_BOOKING":        _show_policy,
+    }
+
+    fn = go.get(state)
+    if fn:
+        fn(phone)
+    else:
+        whatsapp.send_text(phone,
+            "Can't go back further. Type *hi* to restart or *Menu* to browse info.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -611,11 +747,12 @@ def _ask_arrival_step(phone: str):
         "How will you be *arriving*? 🚗",
         "Select Mode",
         [{"title": "Mode of Arrival", "rows": [
-            {"id": "arr_self",      "title": "Self-Drive",           "description": "Own vehicle"},
-            {"id": "arr_kudal",     "title": "Kudal Railway",        "description": f"Rs.{pricing.PICKUP_POINTS['Kudal Railway Station']:,} base"},
-            {"id": "arr_sawant",    "title": "Sawantwadi Railway",   "description": f"Rs.{pricing.PICKUP_POINTS['Sawantwadi Railway Station']:,} base"},
-            {"id": "arr_mopa",      "title": "Mopa Airport",         "description": f"Rs.{pricing.PICKUP_POINTS['Mopa Airport']:,} base"},
-            {"id": "arr_chipi",     "title": "Chipi Airport",        "description": f"Rs.{pricing.PICKUP_POINTS['Chipi Airport']:,} base"},
+            {"id": "arr_self",   "title": "Self-Drive",         "description": "Own vehicle"},
+            {"id": "arr_kudal",  "title": "Kudal Railway",      "description": f"Rs.{pricing.PICKUP_POINTS['Kudal Railway Station']:,} base"},
+            {"id": "arr_sawant", "title": "Sawantwadi Railway", "description": f"Rs.{pricing.PICKUP_POINTS['Sawantwadi Railway Station']:,} base"},
+            {"id": "arr_mopa",   "title": "Mopa Airport",       "description": f"Rs.{pricing.PICKUP_POINTS['Mopa Airport']:,} base"},
+            {"id": "arr_chipi",  "title": "Chipi Airport",      "description": f"Rs.{pricing.PICKUP_POINTS['Chipi Airport']:,} base"},
+            _BACK_ROW,
         ]}],
     )
     _state(phone, "ASK_ARRIVAL_MODE")
@@ -630,7 +767,26 @@ _ARRIVAL_MAP = {
 }
 
 
+def _ask_vehicle_type_step(phone: str):
+    pax = _pax(phone)
+    whatsapp.send_list(
+        phone,
+        f"What type of *vehicle* for pickup?\n_{pax} guests to transport_",
+        "Select Vehicle",
+        [{"title": "Vehicle Type", "rows": [
+            {"id": "veh_sedan", "title": "Sedan",        "description": "4-seater car"},
+            {"id": "veh_muv",   "title": "MUV",          "description": "6-7 seater MUV"},
+            {"id": "veh_bus",   "title": "Charter Bus",  "description": "Large group (20+ pax)"},
+            _BACK_ROW,
+        ]}],
+    )
+    _state(phone, "ASK_VEHICLE_TYPE")
+
+
 def _ask_arrival_mode(phone: str, content: str):
+    if content == "go_back":
+        _back(phone)
+        return
     result = _ARRIVAL_MAP.get(content)
     if not result:
         whatsapp.send_text(phone, "Please select from the list.")
@@ -643,21 +799,13 @@ def _ask_arrival_mode(phone: str, content: str):
         _set(phone, "vehicle_type", None)
         _ask_activities_d1_step(phone)
     else:
-        pax = _pax(phone)
-        whatsapp.send_list(
-            phone,
-            f"What type of *vehicle* do you need for pickup?\n_{pax} guests to transport_",
-            "Select Vehicle",
-            [{"title": "Vehicle Type", "rows": [
-                {"id": "veh_sedan", "title": "Sedan",        "description": "4-seater car"},
-                {"id": "veh_muv",   "title": "MUV",          "description": "6-7 seater MUV"},
-                {"id": "veh_bus",   "title": "Charter Bus",  "description": "Large group (20+ pax)"},
-            ]}],
-        )
-        _state(phone, "ASK_VEHICLE_TYPE")
+        _ask_vehicle_type_step(phone)
 
 
 def _ask_vehicle_type(phone: str, content: str):
+    if content == "go_back":
+        _back(phone)
+        return
     veh_map = {"veh_sedan": "Sedan", "veh_muv": "MUV", "veh_bus": "Charter Bus"}
     veh = veh_map.get(content)
     if not veh:
@@ -668,28 +816,9 @@ def _ask_vehicle_type(phone: str, content: str):
 
 
 # ── Step 6: Activities ────────────────────────────────────────────────────────
-
-def _ask_activities_d1_step(phone: str):
-    s      = _session(phone)
-    chosen = ", ".join(s["activities_d1"]) or "None selected"
-    whatsapp.send_list(
-        phone,
-        f"Selected so far: *{chosen}*\n\n"
-        "Pick a *Day 1 activity* (on the farm):",
-        "Select",
-        [{"title": "Day 1 — Farm Activities", "rows": [
-            {"id": "d1_petting", "title": "Animal Petting",          "description": "Free · 1 hour"},
-            {"id": "d1_bullock", "title": "Bullock Cart Ride",       "description": "Rs.100/pax · 15 mins"},
-            {"id": "d1_bkfast",  "title": "Pick Breakfast Plate",    "description": "Rs.300/pax · 30 mins"},
-            {"id": "d1_trek",    "title": "Trekking",                "description": "Free · 2 hours"},
-            {"id": "d1_swim",    "title": "Swimming Pool",           "description": "Free · All day"},
-            {"id": "d1_rain",    "title": "Gazebo Rain Dance",       "description": "Rs.150/pax · 2 hours"},
-            {"id": "d1_games",   "title": "Indoor Games",            "description": "Rs.150/pax · 3-4 hours"},
-            {"id": "d1_none",    "title": "No Activities",           "description": "Skip & continue"},
-        ]}],
-    )
-    _state(phone, "ASK_ACTIVITIES_D1")
-
+# Activities are stored as dict {name: count}.
+# Free/group activities are auto-added with count=pax.
+# Paid per-person/per-boat activities ask for a guest count first.
 
 _D1_MAP = {
     "d1_petting": "Animal Petting",
@@ -699,98 +828,188 @@ _D1_MAP = {
     "d1_swim":    "Swimming Pool",
     "d1_rain":    "Gazebo Rain Dance",
     "d1_games":   "Indoor Games",
-    "d1_none":    None,
 }
-
-
-def _ask_activities_d1(phone: str, content: str):
-    s = _session(phone)
-    if content == "d1_none":
-        s["activities_d1"] = []
-        _ask_activities_d2_step(phone)
-        return
-    act = _D1_MAP.get(content)
-    if act is None:
-        whatsapp.send_text(phone, "Please select from the list.")
-        return
-    if act not in s["activities_d1"]:
-        s["activities_d1"].append(act)
-    chosen = ", ".join(s["activities_d1"])
-    whatsapp.send_buttons(
-        phone,
-        f"Added ✅ *{act}*\nSelected: *{chosen}*\n\nAdd more or done?",
-        [
-            {"id": "d1_more", "title": "Add More"},
-            {"id": "d1_done", "title": "Done"},
-        ],
-    )
-    _state(phone, "ASK_ACTIVITIES_D1_DONE")
-
-
-def _ask_activities_d1_done(phone: str, content: str):
-    if content == "d1_more":
-        _ask_activities_d1_step(phone)
-    else:
-        _ask_activities_d2_step(phone)
-
-
-def _ask_activities_d2_step(phone: str):
-    s      = _session(phone)
-    chosen = ", ".join(s["activities_d2"]) or "None selected"
-    whatsapp.send_list(
-        phone,
-        f"Selected so far: *{chosen}*\n\n"
-        "Pick a *Day 2 activity* (off-farm / outdoor):",
-        "Select",
-        [{"title": "Day 2 — Outdoor Adventures", "rows": [
-            {"id": "d2_kayak",   "title": "Kayaking",                 "description": "Rs.400/boat · 1 hour"},
-            {"id": "d2_beach",   "title": "Beach & Temple Visit",     "description": "Free · Transport charges apply"},
-            {"id": "d2_malvan",  "title": "Malvan Water Sports",      "description": "Free · Local fare applies"},
-            {"id": "d2_vengurla","title": "Vengurla Beach",           "description": "Free · Transport charges apply"},
-            {"id": "d2_none",    "title": "No Activities",            "description": "Skip & continue"},
-        ]}],
-    )
-    _state(phone, "ASK_ACTIVITIES_D2")
-
 
 _D2_MAP = {
     "d2_kayak":    "Kayaking",
     "d2_beach":    "Beach & Temple Visit",
     "d2_malvan":   "Malvan Water Sports",
     "d2_vengurla": "Vengurla Beach Exploration",
-    "d2_none":     None,
 }
 
 
+def _act_label(acts: dict) -> str:
+    if not acts:
+        return "None selected"
+    parts = []
+    for name, cnt in acts.items():
+        info = pricing.ACTIVITIES_D1.get(name) or pricing.ACTIVITIES_D2.get(name, {})
+        if info.get("free") or info.get("per") == "group":
+            parts.append(name)
+        else:
+            unit = "boat" if info.get("per") == "boat" else "guest"
+            parts.append(f"{name} ({cnt} {unit}{'s' if cnt>1 else ''})")
+    return ", ".join(parts)
+
+
+def _ask_activities_d1_step(phone: str):
+    s   = _session(phone)
+    pax = _pax(phone)
+    sel = _act_label(s["activities_d1"])
+    whatsapp.send_list(
+        phone,
+        f"*Day 1 — Farm Activities* 🌿\nSelected: *{sel}*\n\nTap an activity to add it:",
+        "Select",
+        [{"title": "Farm Activities", "rows": [
+            {"id": "d1_petting", "title": "Animal Petting",       "description": "Free · all guests · 1 hr"},
+            {"id": "d1_bullock", "title": "Bullock Cart Ride",    "description": "Rs.100/guest · 15 mins"},
+            {"id": "d1_bkfast",  "title": "Pick Breakfast Plate", "description": "Rs.300/guest · 30 mins"},
+            {"id": "d1_trek",    "title": "Trekking",             "description": "Free · all guests · 2 hrs"},
+            {"id": "d1_swim",    "title": "Swimming Pool",        "description": "Free · all guests · all day"},
+            {"id": "d1_rain",    "title": "Gazebo Rain Dance",    "description": "Rs.150/guest · 2 hrs"},
+            {"id": "d1_games",   "title": "Indoor Games",         "description": "Rs.150/guest · 3-4 hrs"},
+            _BACK_ROW,
+        ]}],
+    )
+    whatsapp.send_buttons(
+        phone,
+        "When you're done adding Day 1 activities, tap *Done* to continue:",
+        [{"id": "d1_done", "title": "✅ Done"}],
+    )
+    _state(phone, "ASK_ACTIVITIES_D1")
+
+
+def _ask_activities_d1(phone: str, content: str):
+    if content == "go_back":
+        _back(phone)
+        return
+    if content == "d1_done":
+        # Works whether tapped from current Done button or a stale one
+        _ask_activities_d2_step(phone)
+        return
+    act = _D1_MAP.get(content)
+    if not act:
+        whatsapp.send_text(phone, "Please select an activity from the list, or tap *Done* to continue.")
+        return
+
+    info = pricing.ACTIVITIES_D1.get(act, {})
+    pax  = _pax(phone)
+
+    if info.get("free") or info.get("per") == "group":
+        # Auto-add free/group activities for all guests; re-show list with updated selection
+        _session(phone)["activities_d1"][act] = pax
+        _ask_activities_d1_step(phone)
+    else:
+        # Paid — ask how many guests/boats
+        _set(phone, "_pending_act",     act)
+        _set(phone, "_pending_act_day", "d1")
+        unit = "boats" if info.get("per") == "boat" else "guests"
+        whatsapp.send_text(
+            phone,
+            f"*{act}* — Rs.{info['price']:,}/{info['per']}\n\n"
+            f"How many *{unit}* will do this? _(1–{pax} · type 'back' to cancel)_",
+        )
+        _state(phone, "ASK_ACTIVITY_COUNT")
+
+
+def _ask_activities_d2_step(phone: str):
+    s   = _session(phone)
+    pax = _pax(phone)
+    sel = _act_label(s["activities_d2"])
+    whatsapp.send_list(
+        phone,
+        f"*Day 2 — Outdoor Adventures* 🌊\nSelected: *{sel}*\n\nTap an activity to add it:",
+        "Select",
+        [{"title": "Outdoor Activities", "rows": [
+            {"id": "d2_kayak",    "title": "Kayaking",            "description": "Rs.400/boat · 1 hour"},
+            {"id": "d2_beach",    "title": "Beach & Temple Visit","description": "Free · transport charges apply"},
+            {"id": "d2_malvan",   "title": "Malvan Water Sports", "description": "Free · local fare applies"},
+            {"id": "d2_vengurla", "title": "Vengurla Beach",      "description": "Free · transport charges apply"},
+            _BACK_ROW,
+        ]}],
+    )
+    whatsapp.send_buttons(
+        phone,
+        "When you're done adding Day 2 activities, tap *Done* to continue:",
+        [{"id": "d2_done", "title": "✅ Done"}],
+    )
+    _state(phone, "ASK_ACTIVITIES_D2")
+
+
 def _ask_activities_d2(phone: str, content: str):
-    s = _session(phone)
-    if content == "d2_none":
-        s["activities_d2"] = []
+    if content == "go_back":
+        _back(phone)
+        return
+    if content == "d2_done":
+        # Works whether tapped from current Done button or a stale one
         _show_policy(phone)
         return
     act = _D2_MAP.get(content)
-    if act is None:
-        whatsapp.send_text(phone, "Please select from the list.")
+    if not act:
+        whatsapp.send_text(phone, "Please select an activity from the list, or tap *Done* to continue.")
         return
-    if act not in s["activities_d2"]:
-        s["activities_d2"].append(act)
-    chosen = ", ".join(s["activities_d2"])
-    whatsapp.send_buttons(
-        phone,
-        f"Added ✅ *{act}*\nSelected: *{chosen}*\n\nAdd more or done?",
-        [
-            {"id": "d2_more", "title": "Add More"},
-            {"id": "d2_done", "title": "Done"},
-        ],
-    )
-    _state(phone, "ASK_ACTIVITIES_D2_DONE")
 
+    info = pricing.ACTIVITIES_D2.get(act, {})
+    pax  = _pax(phone)
 
-def _ask_activities_d2_done(phone: str, content: str):
-    if content == "d2_more":
+    if info.get("free") or info.get("per") == "group":
+        # Auto-add; re-show list with updated selection
+        _session(phone)["activities_d2"][act] = pax
         _ask_activities_d2_step(phone)
     else:
+        _set(phone, "_pending_act",     act)
+        _set(phone, "_pending_act_day", "d2")
+        unit = "boats" if info.get("per") == "boat" else "guests"
+        whatsapp.send_text(
+            phone,
+            f"*{act}* — Rs.{info['price']:,}/{info['per']}\n\n"
+            f"How many *{unit}*? _(1–{pax} · type 'back' to cancel)_",
+        )
+        _state(phone, "ASK_ACTIVITY_COUNT")
+
+
+def _ask_activity_count(phone: str, content: str):
+    """Handle the guest/boat count for a paid activity."""
+    s   = _session(phone)
+    pax = _pax(phone)
+    day = s.get("_pending_act_day", "d1")   # read day BEFORE clearing
+
+    # Stale Done button taps — treat as skipping count, proceed normally
+    if content == "d1_done":
+        _set(phone, "_pending_act",     None)
+        _set(phone, "_pending_act_day", None)
+        _ask_activities_d2_step(phone)
+        return
+    if content == "d2_done":
+        _set(phone, "_pending_act",     None)
+        _set(phone, "_pending_act_day", None)
         _show_policy(phone)
+        return
+
+    if content.lower().strip() == "back":
+        _set(phone, "_pending_act",     None)
+        _set(phone, "_pending_act_day", None)
+        if day == "d2":
+            _ask_activities_d2_step(phone)
+        else:
+            _ask_activities_d1_step(phone)
+        return
+
+    if not content.strip().isdigit() or not (1 <= int(content.strip()) <= pax):
+        whatsapp.send_text(phone, f"Please enter a number between 1 and {pax}.")
+        return
+
+    count = int(content.strip())
+    act   = s["_pending_act"]
+    _set(phone, "_pending_act",     None)
+    _set(phone, "_pending_act_day", None)
+
+    if day == "d1":
+        s["activities_d1"][act] = count
+        _ask_activities_d1_step(phone)   # re-show list + Done button
+    else:
+        s["activities_d2"][act] = count
+        _ask_activities_d2_step(phone)   # re-show list + Done button
 
 
 # ── Step 7: Policy ────────────────────────────────────────────────────────────
@@ -1236,9 +1455,8 @@ _HANDLERS = {
     "ASK_ARRIVAL_MODE":       _ask_arrival_mode,
     "ASK_VEHICLE_TYPE":       _ask_vehicle_type,
     "ASK_ACTIVITIES_D1":      _ask_activities_d1,
-    "ASK_ACTIVITIES_D1_DONE": _ask_activities_d1_done,
+    "ASK_ACTIVITY_COUNT":     _ask_activity_count,
     "ASK_ACTIVITIES_D2":      _ask_activities_d2,
-    "ASK_ACTIVITIES_D2_DONE": _ask_activities_d2_done,
     "SHOW_POLICY":            _handle_policy,
     "CONFIRM_BOOKING":        _confirm_booking,
     # info
@@ -1268,6 +1486,10 @@ def handle_message(phone: str, msg_type: str, content: str):
         return
 
     # Global shortcuts
+    if content_lower == "back":
+        _back(phone)
+        return
+
     if content_lower in _CALL_WORDS:
         _send_contact_info(phone)
         return
