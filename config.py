@@ -17,6 +17,16 @@ BASE_URL        = os.getenv("BASE_URL", f"http://localhost:{PORT}")
 # Format: country-code + number, no symbols (e.g. 919999999999).
 WA_BUSINESS_NUMBER = os.getenv("WA_BUSINESS_NUMBER", "919999999999")
 
+# ── SMTP (booking confirmation emails) ────────────────────────────────────────
+# For Gmail: SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_USER=you@gmail.com,
+# SMTP_PASSWORD=<app password>. (Create an app password at
+# https://myaccount.google.com/apppasswords — your normal password won't work.)
+SMTP_HOST     = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT     = int(os.getenv("SMTP_PORT", 587))
+SMTP_USER     = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM     = os.getenv("SMTP_FROM") or os.getenv("SMTP_USER", "")
+
 # ── Property ──────────────────────────────────────────────────────────────────
 PROPERTY_NAME    = "Mondkar Farm Stay"
 BOT_NAME         = "Mondy"

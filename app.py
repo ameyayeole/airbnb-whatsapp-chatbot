@@ -3,6 +3,7 @@ import database
 import bot
 import config
 import pricing
+import mailer
 
 app = Flask(__name__)
 database.init_db()
@@ -117,6 +118,47 @@ def api_book():
         )
 
         database.mark_token_used(token)
+
+        # Send confirmation emails (guest + property owner). Failures are logged, not raised.
+        try:
+            mailer.send_booking_confirmation_guest(
+                guest_name=rec["guest_name"],
+                email=rec["email"],
+                booking_ref=booking_ref,
+                check_in=data["check_in"],
+                check_out=data["check_out"],
+                nights=int(data["nights"]),
+                room_type=data["room_type"],
+                room_count=int(data.get("room_count", 1)),
+                total_amount=total_amount,
+                advance_amount=advance_amount,
+            )
+            mailer.send_booking_notification_owner(
+                guest_name=rec["guest_name"],
+                email=rec["email"],
+                phone=rec["phone"],
+                booking_ref=booking_ref,
+                check_in=data["check_in"],
+                check_out=data["check_out"],
+                nights=int(data["nights"]),
+                adults=int(data.get("adults", 0)),
+                children=int(data.get("children", 0)),
+                room_type=data["room_type"],
+                room_count=int(data.get("room_count", 1)),
+                food_preference=data.get("food_preference"),
+                meal_plan_d1=data.get("meal_plan_d1", "No Meals"),
+                meal_plan_sub=data.get("meal_plan_sub", "No Meals"),
+                arrival_mode=data.get("arrival_mode"),
+                pickup_point=data.get("pickup_point"),
+                vehicle_type=data.get("vehicle_type"),
+                activities_d1=activities_d1,
+                activities_d2=activities_d2,
+                special_requests=data.get("special_requests"),
+                total_amount=total_amount,
+                advance_amount=advance_amount,
+            )
+        except Exception as e:
+            print(f"Email trigger failed (booking still saved): {e}")
 
         # Notify guest on WhatsApp that we received the booking.
         try:
