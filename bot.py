@@ -1297,14 +1297,17 @@ def _info_menu(phone: str, content: str):
         whatsapp.send_text(phone, "Please select a topic from the menu.")
 
 
-def _info_back(phone: str):
-    """Send back/book buttons + homepage link after every info response."""
+def _more_details_line() -> str:
+    """Standard 'visit our website' footer used at the end of every info topic."""
     url = config.BASE_URL.rstrip("/") + "/"
+    return f"For more details, visit our website 👇\n{url}"
+
+
+def _info_back(phone: str):
+    """Send back/book buttons after every info response."""
     whatsapp.send_buttons(
         phone,
-        f"For more details, visit our website 👇\n"
-        f"{url}\n\n"
-        f"What would you like to do next?",
+        "What would you like to do next?",
         [
             {"id": "inf_back", "title": "Back to Menu"},
             {"id": "path_book","title": "Book a Stay"},
@@ -1330,7 +1333,7 @@ def _info_rooms(phone: str):
         f"  🛏️ Dormitory Stay — up to 6 guests | Rs.{pricing.ROOM_RATES['Dormitory Stay']:,}/night\n\n"
         f"*Facilities:*\n{lines}\n\n"
         f"*Check-in:* {config.CHECK_IN_TIME}  |  *Check-out:* {config.CHECK_OUT_TIME}\n\n"
-        f"📎 Full details: {config.WEBSITE_URL}/rooms",
+        f"{_more_details_line()}",
     )
     _info_back(phone)
 
@@ -1346,7 +1349,7 @@ def _info_food(phone: str):
         f"  Dinner:    Rs.{pricing.MEAL_PRICES['Dinner']:,}\n\n"
         "*Meal Combos:*\n"
         + "\n".join(f"  {k}: Rs.{v:,}/pax" for k, v in pricing.MEAL_COMBOS.items() if v > 0)
-        + f"\n\n📎 Full menu: {config.WEBSITE_URL}/food",
+        + f"\n\n{_more_details_line()}",
     )
     _info_back(phone)
 
@@ -1362,7 +1365,7 @@ def _info_pricing(phone: str):
         f"*Pickup Transport:*\n"
         + "\n".join(f"  {k}: Rs.{v:,} base" for k, v in pricing.PICKUP_POINTS.items())
         + f"\n\n{config.PAYMENT_INFO}\n\n"
-        f"📎 More: {config.WEBSITE_URL}/pricing",
+        f"{_more_details_line()}",
     )
     _info_back(phone)
 
@@ -1386,7 +1389,7 @@ def _info_activities(phone: str):
         f"🎯 *Activities — {config.PROPERTY_NAME}*\n\n"
         f"*Day 1 (On-Farm):*\n{d1}\n\n"
         f"*Day 2 (Off-Farm / Outdoor):*\n{d2}\n\n"
-        f"📎 Full info: {config.WEBSITE_URL}/activities",
+        f"{_more_details_line()}",
     )
     _info_back(phone)
 
@@ -1405,7 +1408,7 @@ def _info_transport(phone: str):
         f"  Driver: {config.TRANSPORT_CONTACT}\n"
         f"  Guide:  {config.TOUR_GUIDE_CONTACT}\n"
         f"  Sports: {config.SPORTS_GUIDE_CONTACT}\n\n"
-        f"📎 Directions: {config.WEBSITE_URL}/location",
+        f"{_more_details_line()}",
     )
     _info_back(phone)
 
@@ -1414,12 +1417,11 @@ def _info_photos(phone: str):
     whatsapp.send_text(
         phone,
         f"📸 *Farm Photos — {config.PROPERTY_NAME}*\n\n"
-        f"View our full photo gallery online:\n"
-        f"👉 {config.WEBSITE_URL}/gallery\n\n"
         "Or contact us directly for photos:\n"
         f"📞 {config.PROPERTY_CONTACT}\n"
         f"📧 {config.SUPPORT_EMAIL}\n\n"
-        "We'll send photos of rooms, farm, dining, pool & surrounding nature! 🌿",
+        "We'll send photos of rooms, farm, dining, pool & surrounding nature! 🌿\n\n"
+        f"{_more_details_line()}",
     )
     _info_back(phone)
 
@@ -1433,7 +1435,8 @@ def _info_medical(phone: str):
         f"Ambulance (free): {config.AMBULANCE}\n"
         f"{config.PHARMACY_INFO}\n\n"
         "First-aid kit available at the farm.\n"
-        "Caretaker on-site 24/7.",
+        "Caretaker on-site 24/7.\n\n"
+        f"{_more_details_line()}",
     )
     _info_back(phone)
 
