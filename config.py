@@ -9,6 +9,14 @@ PHONE_NUMBER_ID = os.environ["PHONE_NUMBER_ID"]
 VERIFY_TOKEN    = os.environ["VERIFY_TOKEN"]
 PORT            = int(os.getenv("PORT", 5000))
 
+# Public base URL used to build the booking link sent over WhatsApp.
+# Set BASE_URL in .env to your deployed URL (e.g. https://mondys-bot.onrender.com).
+BASE_URL        = os.getenv("BASE_URL", f"http://localhost:{PORT}")
+
+# WhatsApp business number for "Book a Stay" CTA on the homepage.
+# Format: country-code + number, no symbols (e.g. 919999999999).
+WA_BUSINESS_NUMBER = os.getenv("WA_BUSINESS_NUMBER", "919999999999")
+
 # ── Property ──────────────────────────────────────────────────────────────────
 PROPERTY_NAME    = "Mondkar Farm Stay"
 BOT_NAME         = "Mondy"

@@ -115,6 +115,59 @@ def init_db():
             for col, defn in new_cols:
                 cur.execute(f"ALTER TABLE bookings ADD COLUMN IF NOT EXISTS {col} {defn}")
 
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS booking_tokens (
+                    token       TEXT PRIMARY KEY,
+                    phone       TEXT NOT NULL,
+                    guest_name  TEXT NOT NULL,
+                    email       TEXT NOT NULL,
+                    used        BOOLEAN DEFAULT FALSE,
+                    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def create_booking_token(token: str, phone: str, guest_name: str, email: str) -> None:
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO booking_tokens (token, phone, guest_name, email)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (token) DO UPDATE
+                  SET phone = EXCLUDED.phone,
+                      guest_name = EXCLUDED.guest_name,
+                      email = EXCLUDED.email,
+                      used = FALSE
+                """,
+                (token, phone, guest_name, email),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_booking_token(token: str) -> "dict | None":
+    conn = _connect()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM booking_tokens WHERE token = %s", (token,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def mark_token_used(token: str) -> None:
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE booking_tokens SET used = TRUE WHERE token = %s", (token,))
         conn.commit()
     finally:
         conn.close()

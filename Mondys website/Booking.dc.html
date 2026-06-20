@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  ::selection { background: #B65C36; color: #F4ECDD; }
+  input, select, textarea { font-family:'Hanken Grotesk',sans-serif; }
+  input[type=date]::-webkit-calendar-picker-indicator { cursor:pointer; opacity:.6; }
+  select { -webkit-appearance:none; appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235a4f3f' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>"); background-repeat:no-repeat; background-position:right 14px center; }
+</style>
+</helmet>
+
+<div style="background:#F4ECDD; font-family:'Hanken Grotesk',sans-serif; color:#2C2013; min-height:100vh;">
+
+  <!-- NAV -->
+  <nav style="display:flex; align-items:center; justify-content:space-between; padding:16px 48px; background:rgba(244,236,221,.9); border-bottom:1px solid #e3d6bf;">
+    <a href="Mondys Farm Stay.dc.html" style="text-decoration:none; font-family:'Newsreader',serif; font-size:26px; font-weight:600; color:#2C2013;">Mondys<span style="color:#B65C36;">.</span></a>
+    <a href="Mondys Farm Stay.dc.html" style="text-decoration:none; color:#5a4f3f; font-size:15px; font-weight:500;">← Back to site</a>
+  </nav>
+
+  <!-- HEADER -->
+  <div style="max-width:1180px; margin:0 auto; padding:48px 40px 8px;">
+    <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">let's plan your stay</div>
+    <h1 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Book your stay at Mondys</h1>
+    <div style="display:flex; gap:10px; align-items:center; margin-top:20px; font-size:14px; font-weight:600;">
+      <span style="display:flex; align-items:center; gap:8px; padding:8px 16px; border-radius:999px; background:{{ step1PillBg }}; color:{{ step1PillColor }};"><span style="width:20px; height:20px; border-radius:50%; background:{{ step1DotBg }}; color:{{ step1DotColor }}; display:inline-flex; align-items:center; justify-content:center; font-size:12px;">1</span> Your stay</span>
+      <span style="width:24px; height:1px; background:#cdb793;"></span>
+      <span style="display:flex; align-items:center; gap:8px; padding:8px 16px; border-radius:999px; background:{{ step2PillBg }}; color:{{ step2PillColor }};"><span style="width:20px; height:20px; border-radius:50%; background:{{ step2DotBg }}; color:{{ step2DotColor }}; display:inline-flex; align-items:center; justify-content:center; font-size:12px;">2</span> Review &amp; confirm</span>
+    </div>
+  </div>
+
+  <!-- STEP 1 -->
+  <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ true }}">
+  <div style="max-width:1180px; margin:0 auto; padding:24px 40px 80px; display:grid; grid-template-columns:1fr 360px; gap:32px; align-items:start;">
+    <div style="display:flex; flex-direction:column; gap:20px;">
+      <!-- GUESTS & DATES -->
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px 30px;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:23px; margin:0 0 22px;">Who's coming &amp; when</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+          <div>
+            <label style="display:block; font-size:13px; font-weight:600; color:#8a7c66; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px;">Adults</label>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <button onClick="{{ decAdults }}" style="width:40px; height:40px; border-radius:10px; border:1.5px solid #cdb793; background:#fff; font-size:20px; color:#5a4f3f; cursor:pointer;">−</button>
+              <span style="min-width:30px; text-align:center; font-family:'Newsreader',serif; font-size:26px;">{{ adults }}</span>
+              <button onClick="{{ incAdults }}" style="width:40px; height:40px; border-radius:10px; border:1.5px solid #cdb793; background:#fff; font-size:20px; color:#5a4f3f; cursor:pointer;">+</button>
+            </div>
+          </div>
+          <div>
+            <label style="display:block; font-size:13px; font-weight:600; color:#8a7c66; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px;">Children</label>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <button onClick="{{ decChildren }}" style="width:40px; height:40px; border-radius:10px; border:1.5px solid #cdb793; background:#fff; font-size:20px; color:#5a4f3f; cursor:pointer;">−</button>
+              <span style="min-width:30px; text-align:center; font-family:'Newsreader',serif; font-size:26px;">{{ children }}</span>
+              <button onClick="{{ incChildren }}" style="width:40px; height:40px; border-radius:10px; border:1.5px solid #cdb793; background:#fff; font-size:20px; color:#5a4f3f; cursor:pointer;">+</button>
+            </div>
+          </div>
+          <div>
+            <label style="display:block; font-size:13px; font-weight:600; color:#8a7c66; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px;">Check-in</label>
+            <input type="date" value="{{ checkIn }}" onChange="{{ setCheckIn }}" style="width:100%; padding:13px 14px; border:1.5px solid #cdb793; border-radius:10px; font-size:15px; color:#2C2013; background:#fff;" />
+          </div>
+          <div>
+            <label style="display:block; font-size:13px; font-weight:600; color:#8a7c66; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px;">Check-out</label>
+            <input type="date" value="{{ checkOut }}" onChange="{{ setCheckOut }}" style="width:100%; padding:13px 14px; border:1.5px solid #cdb793; border-radius:10px; font-size:15px; color:#2C2013; background:#fff;" />
+          </div>
+        </div>
+        <div style="margin-top:16px; font-size:14px; color:#6E7544; font-weight:600;">{{ nightsLabel }}</div>
+      </div>
+
+      <!-- ROOM -->
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px 30px;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:23px; margin:0 0 6px;">Choose your room</h3>
+        <p style="font-size:14px; color:#8a7c66; margin:0 0 20px;">Rates per room, per night (placeholder) · only 2 of each type available.</p>
+        <div style="display:flex; gap:10px; background:#f0e6d2; padding:6px; border-radius:14px; margin-bottom:22px;">
+          <button onClick="{{ setFamily }}" style="{{ familyStyle }}">Family Suite<br><span style="font-weight:400; font-size:12px; opacity:.7;">sleeps 4 · ₹3,500</span></button>
+          <button onClick="{{ setDorm }}" style="{{ dormStyle }}">Dormitory<br><span style="font-weight:400; font-size:12px; opacity:.7;">sleeps 6 · ₹4,500</span></button>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+          <div>
+            <label style="display:block; font-size:13px; font-weight:600; color:#8a7c66; letter-spacing:.04em; text-transform:uppercase; margin-bottom:4px;">Rooms</label>
+            <span style="font-size:13px; color:#8a7c66;">max {{ roomMax }} available</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <button onClick="{{ decRoom }}" style="width:40px; height:40px; border-radius:10px; border:1.5px solid #cdb793; background:#fff; font-size:20px; color:#5a4f3f; cursor:pointer;">−</button>
+            <span style="min-width:30px; text-align:center; font-family:'Newsreader',serif; font-size:26px;">{{ roomCount }}</span>
+            <button onClick="{{ incRoom }}" style="width:40px; height:40px; border-radius:10px; border:1.5px solid #cdb793; background:#fff; font-size:20px; color:#5a4f3f; cursor:pointer;">+</button>
+          </div>
+        </div>
+        <sc-if value="{{ hasRoomError }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:16px; padding:12px 16px; background:#fbe3d9; border:1px solid #e3a78c; border-radius:10px; font-size:14px; color:#9E4E2E; font-weight:500;">⚠ {{ roomError }}</div>
+        </sc-if>
+        <div style="margin-top:16px; padding-top:16px; border-top:1px solid #efe3ce;">
+          <span onClick="{{ toggleBedding }}" style="{{ beddingStyle }}"><span style="font-size:16px;">🛏</span> Add extra bedding / mattress</span>
+          <p style="font-size:13px; color:#8a7c66; margin:10px 0 0;">Optional, free on request — handy for an extra child.</p>
+        </div>
+      </div>
+
+      <!-- FOOD PREFERENCE -->
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px 30px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+          <div>
+            <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:23px; margin:0 0 4px;">Meals &amp; food</h3>
+            <p style="font-size:14px; color:#8a7c66; margin:0;">Home-cooked Konkan meals, priced per guest per day.</p>
+          </div>
+          <span onClick="{{ toggleMeals }}" style="{{ mealsStyle }}"><span style="font-size:16px;">🍽</span> Add meals</span>
+        </div>
+        <sc-if value="{{ mealsReq }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:22px; font-size:13px; font-weight:600; color:#8a7c66; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px;">Food preference</div>
+        <div style="display:flex; gap:10px; background:#f0e6d2; padding:6px; border-radius:14px;">
+          <button onClick="{{ setVeg }}" style="{{ vegStyle }}">🥬 Vegetarian</button>
+          <button onClick="{{ setNonveg }}" style="{{ nonvegStyle }}">🍗 Non-Vegetarian</button>
+          <button onClick="{{ setMixed }}" style="{{ mixedStyle }}">🍽 Mixed Group</button>
+        </div>
+        <sc-if value="{{ isMixed }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:22px; display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+            <div>
+              <label style="display:block; font-size:13px; font-weight:600; color:#8a7c66; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px;">Vegetarian guests</label>
+              <div style="display:flex; align-items:center; gap:14px;">
+                <button onClick="{{ decVeg }}" style="width:40px; height:40px; border-radius:10px; border:1.5px solid #cdb793; background:#fff; font-size:20px; color:#5a4f3f; cursor:pointer;">−</button>
+                <span style="min-width:30px; text-align:center; font-family:'Newsreader',serif; font-size:26px;">{{ vegCount }}</span>
+                <button onClick="{{ incVeg }}" style="width:40px; height:40px; border-radius:10px; border:1.5px solid #cdb793; background:#fff; font-size:20px; color:#5a4f3f; cursor:pointer;">+</button>
+              </div>
+            </div>
+            <div>
+              <label style="display:block; font-size:13px; font-weight:600; color:#8a7c66; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px;">Non-veg guests</label>
+              <div style="display:flex; align-items:center; gap:14px;">
+                <button onClick="{{ decNonveg }}" style="width:40px; height:40px; border-radius:10px; border:1.5px solid #cdb793; background:#fff; font-size:20px; color:#5a4f3f; cursor:pointer;">−</button>
+                <span style="min-width:30px; text-align:center; font-family:'Newsreader',serif; font-size:26px;">{{ nonvegCount }}</span>
+                <button onClick="{{ incNonveg }}" style="width:40px; height:40px; border-radius:10px; border:1.5px solid #cdb793; background:#fff; font-size:20px; color:#5a4f3f; cursor:pointer;">+</button>
+              </div>
+            </div>
+          </div>
+          <sc-if value="{{ hasFoodError }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:16px; padding:12px 16px; background:#fbe3d9; border:1px solid #e3a78c; border-radius:10px; font-size:14px; color:#9E4E2E; font-weight:500;">⚠ {{ foodError }}</div>
+          </sc-if>
+        </sc-if>
+        </sc-if>
+      </div>
+
+      <!-- MEALS PER DAY -->
+      <sc-if value="{{ mealsReq }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px 30px;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:23px; margin:0 0 6px;">Meal plan, day by day</h3>
+        <p style="font-size:14px; color:#8a7c66; margin:0 0 20px;">Priced per guest, per day. Pick a different plan for each day, or set them all at once.</p>
+        <sc-if value="{{ hasNights }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+            <span style="font-size:14px; color:#5a4f3f; font-weight:600;">Set every day to:</span>
+            <select value="" onChange="{{ setAllMeals }}" style="padding:10px 36px 10px 14px; border:1.5px solid #cdb793; border-radius:10px; font-size:14px; color:#2C2013; background-color:#fff; cursor:pointer;">
+              <option value="">Choose a plan…</option>
+              <option value="bld">All Meals · BLD — ₹950</option>
+              <option value="bd">Breakfast + Dinner — ₹600</option>
+              <option value="ld">Lunch + Dinner — ₹750</option>
+              <option value="b">Breakfast Only — ₹200</option>
+              <option value="d">Dinner Only — ₹400</option>
+              <option value="none">No Meals — ₹0</option>
+            </select>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <sc-for list="{{ mealDays }}" as="d" hint-placeholder-count="2">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 16px; background:#f7efdd; border-radius:12px;">
+                <div>
+                  <div style="font-weight:700; font-size:15px; color:#2C2013;">{{ d.dayLabel }}</div>
+                  <div style="font-size:13px; color:#8a7c66;">{{ d.dateLabel }}</div>
+                </div>
+                <select value="{{ d.current }}" onChange="{{ d.onChange }}" style="flex:0 0 auto; min-width:230px; padding:11px 36px 11px 14px; border:1.5px solid #cdb793; border-radius:10px; font-size:14px; color:#2C2013; background-color:#fff; cursor:pointer;">
+                  <option value="bld">All Meals · BLD — ₹950</option>
+                  <option value="bd">Breakfast + Dinner — ₹600</option>
+                  <option value="ld">Lunch + Dinner — ₹750</option>
+                  <option value="b">Breakfast Only — ₹200</option>
+                  <option value="d">Dinner Only — ₹400</option>
+                  <option value="none">No Meals — ₹0</option>
+                </select>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:16px; text-align:right; font-size:15px; color:#5a4f3f;">Meals subtotal · <strong style="font-family:'Newsreader',serif; font-size:18px; color:#2C2013;">{{ mealsTotal }}</strong></div>
+        </sc-if>
+        <sc-if value="{{ noNights }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:18px; background:#f7efdd; border:1px dashed #cdb793; border-radius:12px; font-size:14px; color:#8a7c66; text-align:center;">Pick your check-in &amp; check-out dates above to plan meals for each day.</div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <!-- TRANSPORT -->
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px 30px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+          <div>
+            <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:23px; margin:0 0 4px;">Transport</h3>
+            <p style="font-size:14px; color:#8a7c66; margin:0;">One-way fares per vehicle. Added to your total.</p>
+          </div>
+          <span onClick="{{ toggleTransport }}" style="{{ transportStyle }}"><span style="font-size:16px;">🚗</span> I need pickup / drop</span>
+        </div>
+        <sc-if value="{{ transportReq }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:22px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <div>
+              <label style="display:block; font-size:13px; font-weight:600; color:#8a7c66; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px;">Pickup from</label>
+              <select value="{{ pickup }}" onChange="{{ setPickup }}" style="width:100%; padding:13px 36px 13px 14px; border:1.5px solid #cdb793; border-radius:10px; font-size:14px; color:#2C2013; background-color:#fff; cursor:pointer;">
+                <option value="">Select a point…</option>
+                <option value="kudal">Kudal Railway Station — ₹500</option>
+                <option value="sawantwadi">Sawantwadi Railway Station — ₹600</option>
+                <option value="chipi">Chipi Airport — ₹700</option>
+                <option value="mopa">Mopa Airport — ₹800</option>
+              </select>
+            </div>
+            <div>
+              <label style="display:block; font-size:13px; font-weight:600; color:#8a7c66; letter-spacing:.04em; text-transform:uppercase; margin-bottom:10px;">Drop to <span style="font-weight:400; text-transform:none;">(optional)</span></label>
+              <select value="{{ drop }}" onChange="{{ setDrop }}" style="width:100%; padding:13px 36px 13px 14px; border:1.5px solid #cdb793; border-radius:10px; font-size:14px; color:#2C2013; background-color:#fff; cursor:pointer;">
+                <option value="">No drop needed</option>
+                <option value="kudal">Kudal Railway Station — ₹500</option>
+                <option value="sawantwadi">Sawantwadi Railway Station — ₹600</option>
+                <option value="chipi">Chipi Airport — ₹700</option>
+                <option value="mopa">Mopa Airport — ₹800</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:16px; text-align:right; font-size:15px; color:#5a4f3f;">Transport subtotal · <strong style="font-family:'Newsreader',serif; font-size:18px; color:#2C2013;">{{ transportTotal }}</strong></div>
+        </sc-if>
+      </div>
+
+      <!-- ACTIVITIES -->
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px 30px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+          <div>
+            <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:23px; margin:0 0 4px;">Activities</h3>
+            <p style="font-size:14px; color:#8a7c66; margin:0;">Add farm &amp; outdoor experiences, then set how many guests join each.</p>
+          </div>
+          <span onClick="{{ toggleActivities }}" style="{{ activitiesStyle }}"><span style="font-size:16px;">🌿</span> Add activities</span>
+        </div>
+        <sc-if value="{{ activitiesReq }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:22px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <sc-for list="{{ activityRows }}" as="a" hint-placeholder-count="6">
+            <div style="{{ a.cardStyle }}">
+              <div onClick="{{ a.onToggle }}" style="cursor:pointer; display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                <div>
+                  <div style="font-weight:700; font-size:15px; color:#2C2013;">{{ a.label }}</div>
+                  <div style="font-size:13px; color:#8a7c66; margin-top:2px;">{{ a.note }}</div>
+                </div>
+                <span style="font-size:13px; font-weight:700; color:#B65C36; white-space:nowrap;">{{ a.costLabel }}</span>
+              </div>
+              <sc-if value="{{ a.showGuestStepper }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:14px; padding-top:14px; border-top:1px solid #ecdcc0; display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:13px; font-weight:600; color:#8a7c66;">Guests joining</span>
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <button onClick="{{ a.decGuests }}" style="width:32px; height:32px; border-radius:8px; border:1.5px solid #cdb793; background:#fff; font-size:17px; color:#5a4f3f; cursor:pointer;">−</button>
+                    <span style="min-width:22px; text-align:center; font-family:'Newsreader',serif; font-size:20px;">{{ a.count }}</span>
+                    <button onClick="{{ a.incGuests }}" style="width:32px; height:32px; border-radius:8px; border:1.5px solid #cdb793; background:#fff; font-size:17px; color:#5a4f3f; cursor:pointer;">+</button>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ a.showBoatStepper }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:14px; padding-top:14px; border-top:1px solid #ecdcc0; display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-size:13px; font-weight:600; color:#8a7c66;">🛶 Kayak boats</span>
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <button onClick="{{ a.decBoats }}" style="width:32px; height:32px; border-radius:8px; border:1.5px solid #cdb793; background:#fff; font-size:17px; color:#5a4f3f; cursor:pointer;">−</button>
+                    <span style="min-width:22px; text-align:center; font-family:'Newsreader',serif; font-size:20px;">{{ a.boats }}</span>
+                    <button onClick="{{ a.incBoats }}" style="width:32px; height:32px; border-radius:8px; border:1.5px solid #cdb793; background:#fff; font-size:17px; color:#5a4f3f; cursor:pointer;">+</button>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:16px; text-align:right; font-size:15px; color:#5a4f3f;">Activities subtotal · <strong style="font-family:'Newsreader',serif; font-size:18px; color:#2C2013;">{{ activitiesTotal }}</strong></div>
+        </sc-if>
+      </div>
+
+      <!-- SPECIAL REQUESTS -->
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px 30px;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:23px; margin:0 0 16px;">Special requests</h3>
+        <textarea value="{{ requests }}" onChange="{{ setRequests }}" placeholder="Anything we should know? Dietary needs, arrival time, a birthday to celebrate…" style="width:100%; min-height:110px; resize:vertical; padding:14px 16px; border:1.5px solid #cdb793; border-radius:12px; font-size:15px; color:#2C2013; background:#fff; line-height:1.5;"></textarea>
+      </div>
+    </div>
+    <aside style="position:sticky; top:20px;">
+      <div style="background:#2C2013; color:#F4ECDD; border-radius:20px; padding:28px 26px;">
+        <div style="font-family:'Caveat',cursive; font-size:24px; color:#E9C57E; line-height:1;">your stay, so far</div>
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:24px; margin:6px 0 20px;">Booking summary</h3>
+
+        <div style="display:flex; flex-direction:column; gap:14px; font-size:14px;">
+          <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+            <span style="color:#cdbf9f;">{{ roomsLine }}</span>
+            <span style="font-weight:600; white-space:nowrap;">{{ roomsTotal }}</span>
+          </div>
+          <sc-if value="{{ hasMeals }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+              <span style="color:#cdbf9f;">{{ mealsLine }}</span>
+              <span style="font-weight:600; white-space:nowrap;">{{ mealsTotal }}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ hasTransport }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+              <span style="color:#cdbf9f;">Transport</span>
+              <span style="font-weight:600; white-space:nowrap;">{{ transportTotal }}</span>
+            </div>
+          </sc-if>
+          <sc-if value="{{ hasActivities }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+              <span style="color:#cdbf9f;">Activities</span>
+              <span style="font-weight:600; white-space:nowrap;">{{ activitiesTotal }}</span>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:22px; padding-top:18px; border-top:1px solid #4a3a26;">
+          <span style="font-size:15px; color:#cdbf9f;">Estimated total</span>
+          <span style="font-family:'Newsreader',serif; font-size:34px; color:#F4ECDD;">{{ grandTotal }}</span>
+        </div>
+
+        <button onClick="{{ goReview }}" style="{{ continueStyle }}" >Review &amp; confirm →</button>
+        <sc-if value="{{ canContinue }}" hint-placeholder-val="{{ false }}">
+          <p style="font-size:12px; color:#8d8478; text-align:center; margin:12px 0 0;">Taxes settled at the farm · final amount confirmed by us.</p>
+        </sc-if>
+      </div>
+      <sc-if value="{{ cannotContinue }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:14px; padding:14px 16px; background:#fbeede; border:1px solid #e3c3a8; border-radius:14px; font-size:13px; color:#9E4E2E; line-height:1.5;"><strong>Before you continue:</strong> {{ issuesText }}</div>
+      </sc-if>
+    </aside>
+  </div>
+  </sc-if>
+
+  <!-- STEP 2 -->
+  <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ true }}">
+  <div style="max-width:820px; margin:0 auto; padding:24px 40px 80px;">
+    <!-- REVIEW (not yet submitted) -->
+    <sc-if value="{{ notSubmitted }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex; flex-direction:column; gap:20px;">
+
+      <!-- stay details -->
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:30px 32px;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:24px; margin:0 0 20px;">Your stay</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px 32px;">
+          <div><div style="font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#8a7c66; margin-bottom:4px;">Dates</div><div style="font-size:16px; font-weight:500;">{{ datesSummary }} · {{ nightsLabel }}</div></div>
+          <div><div style="font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#8a7c66; margin-bottom:4px;">Guests</div><div style="font-size:16px; font-weight:500;">{{ guestsSummary }}</div></div>
+          <div><div style="font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#8a7c66; margin-bottom:4px;">Room</div><div style="font-size:16px; font-weight:500;">{{ roomsLine }}</div></div>
+          <div><div style="font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#8a7c66; margin-bottom:4px;">Food</div><div style="font-size:16px; font-weight:500;">{{ foodSummary }}</div></div>
+          <div><div style="font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#8a7c66; margin-bottom:4px;">Transport</div><div style="font-size:16px; font-weight:500;">{{ transportSummary }}</div></div>
+          <div><div style="font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:#8a7c66; margin-bottom:4px;">Special requests</div><div style="font-size:16px; font-weight:500;">{{ requestsSummary }}</div></div>
+        </div>
+      </div>
+
+      <!-- cost breakdown -->
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:30px 32px;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:24px; margin:0 0 20px;">Cost breakdown</h3>
+        <div style="display:flex; flex-direction:column; gap:14px; font-size:15px;">
+          <div style="display:flex; justify-content:space-between; gap:16px;"><span style="color:#5a4f3f;">{{ roomsLine }}</span><span style="font-weight:600;">{{ roomsTotal }}</span></div>
+          <sc-if value="{{ hasMeals }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; justify-content:space-between; gap:16px;"><span style="color:#5a4f3f;">{{ mealsLine }}</span><span style="font-weight:600;">{{ mealsTotal }}</span></div>
+          </sc-if>
+          <sc-if value="{{ hasTransport }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex; justify-content:space-between; gap:16px;"><span style="color:#5a4f3f;">Transport · {{ transportSummary }}</span><span style="font-weight:600;">{{ transportTotal }}</span></div>
+          </sc-if>
+          <sc-if value="{{ hasSelectedActivities }}" hint-placeholder-val="{{ false }}">
+            <div style="padding-top:6px;">
+              <div style="font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#8a7c66; margin-bottom:10px;">Activities</div>
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <sc-for list="{{ selectedActivities }}" as="act" hint-placeholder-count="2">
+                  <div style="display:flex; justify-content:space-between; gap:16px;"><span style="color:#5a4f3f;">{{ act.label }}</span><span style="font-weight:600;">{{ act.costLabel }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-top:24px; padding-top:20px; border-top:2px solid #2C2013;">
+          <span style="font-size:17px; font-weight:600;">Estimated total</span>
+          <span style="font-family:'Newsreader',serif; font-size:40px; color:#B65C36;">{{ grandTotal }}</span>
+        </div>
+        <p style="font-size:13px; color:#8a7c66; margin:14px 0 0;">Room rates are placeholders. Final amount and payment details are confirmed by the farm after you send this request.</p>
+      </div>
+
+      <div style="display:flex; gap:14px; align-items:center;">
+        <button onClick="{{ goBack }}" style="cursor:pointer; border:1.5px solid #cdb793; background:transparent; color:#2C2013; padding:15px 28px; border-radius:999px; font-weight:600; font-size:16px; font-family:'Hanken Grotesk',sans-serif;">← Edit details</button>
+        <button onClick="{{ submit }}" style="flex:1; cursor:pointer; border:none; background:#B65C36; color:#F4ECDD; padding:16px 28px; border-radius:999px; font-weight:700; font-size:16px; font-family:'Hanken Grotesk',sans-serif;">Send booking request</button>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- CONFIRMATION -->
+    <sc-if value="{{ submitted }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#2C2013; color:#F4ECDD; border-radius:24px; padding:64px 48px; text-align:center; position:relative; overflow:hidden;">
+      <div style="position:absolute; inset:0; background-image:radial-gradient(circle at 80% 10%, rgba(212,155,62,.18), transparent 45%), radial-gradient(circle at 10% 90%, rgba(110,117,68,.30), transparent 50%);"></div>
+      <div style="position:relative;">
+        <div style="width:64px; height:64px; border-radius:50%; background:#6E7544; display:flex; align-items:center; justify-content:center; font-size:30px; margin:0 auto 22px;">✓</div>
+        <div style="font-family:'Caveat',cursive; font-size:28px; color:#E9C57E;">request received</div>
+        <h2 style="font-family:'Newsreader',serif; font-weight:400; font-size:44px; margin:6px 0 16px; line-height:1.1;">See you at the farm!</h2>
+        <p style="color:#ddd3c2; font-size:16px; max-width:440px; margin:0 auto 8px; line-height:1.6;">We've noted your request for <strong style="color:#F4ECDD;">{{ datesSummary }}</strong> ({{ nightsLabel }}), {{ guestsSummary }}.</p>
+        <p style="color:#ddd3c2; font-size:16px; margin:0 auto 28px;">Estimated total <strong style="font-family:'Newsreader',serif; font-size:22px; color:#E9A867;">{{ grandTotal }}</strong> — we'll confirm availability &amp; payment shortly.</p>
+        <a href="Mondys Farm Stay.dc.html" style="text-decoration:none; display:inline-block; background:#B65C36; color:#F4ECDD; padding:15px 34px; border-radius:999px; font-weight:600; font-size:16px;">Back to the farm</a>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = {
+    step: 1,
+    adults: 2, children: 0,
+    checkIn: '', checkOut: '',
+    roomType: 'family', roomCount: 1, extraBedding: false,
+    mealsReq: false,
+    foodPref: 'veg', vegCount: 1, nonvegCount: 1,
+    meals: {},
+    activitiesReq: false,
+    transportReq: false, pickup: '', drop: '',
+    activities: {}, activityGuests: {}, boats: 1,
+    requests: '',
+    submitted: false
+  };
+
+  ROOMS = {
+    family: { label: 'Family Suite', cap: 4, rate: 3500, avail: 2 },
+    dorm:   { label: 'Dormitory',    cap: 6, rate: 4500, avail: 2 }
+  };
+  MEALPLANS = {
+    bld:  { label: 'All Meals · BLD', price: 950 },
+    bd:   { label: 'Breakfast + Dinner', price: 600 },
+    ld:   { label: 'Lunch + Dinner', price: 750 },
+    b:    { label: 'Breakfast Only', price: 200 },
+    d:    { label: 'Dinner Only', price: 400 },
+    none: { label: 'No Meals', price: 0 }
+  };
+  TRANSPORT = {
+    kudal:      { label: 'Kudal Railway Station', fare: 500 },
+    sawantwadi: { label: 'Sawantwadi Railway Station', fare: 600 },
+    chipi:      { label: 'Chipi Airport', fare: 700 },
+    mopa:       { label: 'Mopa Airport', fare: 800 }
+  };
+  ACTIVITIES = [
+    { id:'petting',  label:'Animal Petting',          price:0,   unit:'free', note:'Free · 1 hr' },
+    { id:'bullock',  label:'Bullock Cart Ride',       price:100, unit:'guest', note:'₹100 / guest · 15 min' },
+    { id:'breakfast',label:'Pick Your Breakfast Plate',price:300, unit:'guest', note:'₹300 / guest · 30 min' },
+    { id:'trek',     label:'Trekking',                price:0,   unit:'free', note:'Free · 2 hrs' },
+    { id:'rain',     label:'Gazebo Rain Dance',       price:150, unit:'guest', note:'₹150 / guest · 2 hrs' },
+    { id:'games',    label:'Indoor Games',            price:150, unit:'guest', note:'₹150 / guest · 3–4 hrs' },
+    { id:'kayak',    label:'Kayaking',                price:400, unit:'boat',  note:'₹400 / boat · 1 hr' },
+    { id:'beach',    label:'Beach & Temple Visit',    price:0,   unit:'free', note:'Free · transport extra' },
+    { id:'malvan',   label:'Malvan Water Sports',     price:0,   unit:'free', note:'Free · local fare' },
+    { id:'vengurla', label:'Vengurla Beach',          price:0,   unit:'free', note:'Free · transport extra' }
+  ];
+
+  fmt(n){ return '₹' + (Math.round(n)||0).toLocaleString('en-IN'); }
+  set(patch){ this.setState(patch); }
+  clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+  nights(){
+    const { checkIn, checkOut } = this.state;
+    if(!checkIn || !checkOut) return 0;
+    const d = (new Date(checkOut) - new Date(checkIn)) / 86400000;
+    return d > 0 ? Math.round(d) : 0;
+  }
+  dayDate(i){
+    const base = new Date(this.state.checkIn);
+    base.setDate(base.getDate() + i);
+    return base.toLocaleDateString('en-IN', { weekday:'short', day:'numeric', month:'short' });
+  }
+  mealKeyFor(i){ return this.state.meals[i] || 'bld'; }
+
+  renderVals(){
+    const s = this.state;
+    const room = this.ROOMS[s.roomType];
+    const persons = s.adults + s.children;
+    const nights = this.nights();
+    const reqRooms = Math.max(1, Math.ceil(persons / room.cap));
+
+    // ---- room validation ----
+    let roomError = '';
+    if (persons < 1) roomError = 'Add at least one guest.';
+    else if (reqRooms > room.avail) roomError = `${persons} guests is more than ${room.avail} ${room.label}${room.avail>1?'s':''} can sleep (max ${room.cap*room.avail}). Reduce guests or switch room type.`;
+    else if (s.roomCount < reqRooms) roomError = `${persons} guests need at least ${reqRooms} room${reqRooms>1?'s':''}. Increase room count.`;
+
+    // ---- food validation ----
+    const isMixed = s.foodPref === 'mixed';
+    const foodSum = s.vegCount + s.nonvegCount;
+    const foodError = (s.mealsReq && isMixed && persons>0 && foodSum !== persons)
+      ? `Veg + Non-veg should add up to ${persons} guest${persons>1?'s':''} (currently ${foodSum}).` : '';
+
+    // ---- meals ----
+    const mealDays = [];
+    for (let i=0;i<nights;i++){
+      const cur = this.mealKeyFor(i);
+      mealDays.push({
+        idx:i, dayLabel:`Day ${i+1}`, dateLabel:this.dayDate(i), current:cur,
+        onChange:(e)=>{ const v=e.target.value; this.setState(st=>({ meals:{...st.meals,[i]:v} })); }
+      });
+    }
+    const mealsTotal = s.mealsReq ? mealDays.reduce((sum,d)=> sum + this.MEALPLANS[d.current].price * persons, 0) : 0;
+
+    // ---- transport ----
+    const pickupFare = s.transportReq && s.pickup ? this.TRANSPORT[s.pickup].fare : 0;
+    const dropFare   = s.transportReq && s.drop   ? this.TRANSPORT[s.drop].fare   : 0;
+    const transportTotal = pickupFare + dropFare;
+
+    // ---- activities ----
+    const maxGuests = Math.max(1, persons);
+    const guestsFor = (id)=> this.clamp((s.activityGuests[id] ?? persons), 1, maxGuests);
+    const activityRows = this.ACTIVITIES.map(a=>{
+      const sel = !!s.activities[a.id];
+      const count = guestsFor(a.id);
+      let costLabel = 'Free';
+      if (a.unit==='guest') costLabel = a.price ? `+${this.fmt(a.price*count)}` : 'Free';
+      else if (a.unit==='boat') costLabel = `+${this.fmt(a.price*s.boats)}`;
+      const cardStyle = {
+        textAlign:'left', border: sel?'1.5px solid #B65C36':'1.5px solid #e3d6bf',
+        background: sel?'#fbeede':'#fffaf0', borderRadius:'14px', padding:'16px 18px', transition:'all .15s ease'
+      };
+      return {
+        ...a, selected:sel, costLabel, cardStyle, count,
+        showGuestStepper: sel && a.unit!=='boat',
+        showBoatStepper: sel && a.unit==='boat',
+        boats: s.boats,
+        incBoats:()=>this.set({boats:s.boats+1}),
+        decBoats:()=>this.set({boats:Math.max(1,s.boats-1)}),
+        incGuests:()=> this.setState(st=>({ activityGuests:{...st.activityGuests, [a.id]: Math.min(maxGuests, (st.activityGuests[a.id] ?? persons)+1)} })),
+        decGuests:()=> this.setState(st=>({ activityGuests:{...st.activityGuests, [a.id]: Math.max(1, (st.activityGuests[a.id] ?? persons)-1)} })),
+        onToggle:()=> this.setState(st=>{
+          const on = !st.activities[a.id];
+          const ag = {...st.activityGuests};
+          if (on && ag[a.id]==null) ag[a.id] = persons;
+          return { activities:{...st.activities,[a.id]:on}, activityGuests:ag };
+        })
+      };
+    });
+    const activitiesTotal = s.activitiesReq ? activityRows.reduce((sum,a)=>{
+      if(!a.selected) return sum;
+      if(a.unit==='guest') return sum + a.price*a.count;
+      if(a.unit==='boat')  return sum + a.price*s.boats;
+      return sum;
+    },0) : 0;
+    const selectedActivities = (s.activitiesReq ? activityRows.filter(a=>a.selected) : []).map(a=>{
+      let cost=0, qty='';
+      if(a.unit==='guest'){ cost=a.price*a.count; qty=`${a.count} guest${a.count>1?'s':''}`; }
+      else if(a.unit==='boat'){ cost=a.price*s.boats; qty=`${s.boats} boat${s.boats>1?'s':''}`; }
+      else { qty=`${a.count} guest${a.count>1?'s':''}`; }
+      return { label:a.label + (qty?` · ${qty}`:''), cost, costLabel: cost? this.fmt(cost):'Free' };
+    });
+    const kayakSelected = !!s.activities['kayak'];
+
+    // ---- totals ----
+    const roomsTotal = room.rate * s.roomCount * nights;
+    const grandTotal = roomsTotal + mealsTotal + transportTotal + activitiesTotal;
+
+    // ---- continue gating ----
+    const issues = [];
+    if (persons < 1) issues.push('Add at least one guest');
+    if (nights < 1) issues.push('Choose your dates');
+    if (roomError) issues.push('Fix room selection');
+    if (foodError) issues.push('Balance the food count');
+    if (s.transportReq && !s.pickup) issues.push('Pick a transport point');
+    const canContinue = issues.length === 0;
+
+    // ---- step pills ----
+    const pills = {
+      step1PillBg: s.step===1?'#2C2013':'#efe3ce', step1PillColor: s.step===1?'#F4ECDD':'#8a7c66',
+      step1DotBg: s.step===1?'#D49B3E':'#cdb793', step1DotColor:'#2C2013',
+      step2PillBg: s.step===2?'#2C2013':'#efe3ce', step2PillColor: s.step===2?'#F4ECDD':'#8a7c66',
+      step2DotBg: s.step===2?'#D49B3E':'#cdb793', step2DotColor:'#2C2013'
+    };
+
+    return {
+      ...pills,
+      isStep1: s.step===1, isStep2: s.step===2,
+      // guests
+      adults:s.adults, children:s.children, persons,
+      incAdults:()=>this.set({adults:s.adults+1}), decAdults:()=>this.set({adults:Math.max(1,s.adults-1)}),
+      incChildren:()=>this.set({children:s.children+1}), decChildren:()=>this.set({children:Math.max(0,s.children-1)}),
+      // dates
+      checkIn:s.checkIn, checkOut:s.checkOut, nights,
+      nightsLabel: nights ? `${nights} night${nights>1?'s':''}` : 'Select dates',
+      setCheckIn:(e)=>this.set({checkIn:e.target.value}), setCheckOut:(e)=>this.set({checkOut:e.target.value}),
+      // room
+      roomType:s.roomType, isFamily:s.roomType==='family', isDorm:s.roomType==='dorm',
+      roomLabel:room.label, roomRate:this.fmt(room.rate), roomCap:room.cap,
+      setFamily:()=>this.setState({roomType:'family', roomCount:1}), setDorm:()=>this.setState({roomType:'dorm', roomCount:1}),
+      roomCount:s.roomCount, roomMax:room.avail,
+      incRoom:()=>this.set({roomCount:Math.min(room.avail,s.roomCount+1)}), decRoom:()=>this.set({roomCount:Math.max(1,s.roomCount-1)}),
+      roomError, hasRoomError: !!roomError,
+      familyStyle: this.segStyle(s.roomType==='family'), dormStyle: this.segStyle(s.roomType==='dorm'),
+      extraBedding:s.extraBedding, toggleBedding:()=>this.set({extraBedding:!s.extraBedding}),
+      beddingStyle: this.toggleStyle(s.extraBedding),
+      // food
+      mealsReq:s.mealsReq, toggleMeals:()=>this.set({mealsReq:!s.mealsReq}), mealsStyle:this.toggleStyle(s.mealsReq),
+      foodPref:s.foodPref, isVeg:s.foodPref==='veg', isNonveg:s.foodPref==='nonveg', isMixed,
+      vegStyle:this.segStyle(s.foodPref==='veg'), nonvegStyle:this.segStyle(s.foodPref==='nonveg'), mixedStyle:this.segStyle(isMixed),
+      setVeg:()=>this.set({foodPref:'veg'}), setNonveg:()=>this.set({foodPref:'nonveg'}),
+      setMixed:()=>this.setState({foodPref:'mixed', vegCount:persons, nonvegCount:0}),
+      vegCount:s.vegCount, nonvegCount:s.nonvegCount,
+      incVeg:()=>this.set({vegCount:s.vegCount+1}), decVeg:()=>this.set({vegCount:Math.max(0,s.vegCount-1)}),
+      incNonveg:()=>this.set({nonvegCount:s.nonvegCount+1}), decNonveg:()=>this.set({nonvegCount:Math.max(0,s.nonvegCount-1)}),
+      foodError, hasFoodError:!!foodError,
+      // meals
+      mealDays, hasNights: nights>0, noNights: nights<1, mealsTotal:this.fmt(mealsTotal),
+      setAllMeals:(e)=>{ const v=e.target.value; if(!v) return; const m={}; for(let i=0;i<nights;i++) m[i]=v; this.setState({meals:m}); },
+      // transport
+      transportReq:s.transportReq, toggleTransport:()=>this.set({transportReq:!s.transportReq}),
+      transportStyle:this.toggleStyle(s.transportReq),
+      pickup:s.pickup, drop:s.drop,
+      setPickup:(e)=>this.set({pickup:e.target.value}), setDrop:(e)=>this.set({drop:e.target.value}),
+      pickupFareLabel: pickupFare?this.fmt(pickupFare):'', dropFareLabel: dropFare?this.fmt(dropFare):'',
+      transportTotal:this.fmt(transportTotal),
+      // activities
+      activitiesReq:s.activitiesReq, toggleActivities:()=>this.set({activitiesReq:!s.activitiesReq}), activitiesStyle:this.toggleStyle(s.activitiesReq),
+      activityRows, activitiesTotal:this.fmt(activitiesTotal), kayakSelected,
+      boats:s.boats, incBoats:()=>this.set({boats:s.boats+1}), decBoats:()=>this.set({boats:Math.max(1,s.boats-1)}),
+      // requests
+      requests:s.requests, setRequests:(e)=>this.set({requests:e.target.value}),
+      // totals
+      roomsTotalNum:roomsTotal, roomsTotal:this.fmt(roomsTotal),
+      mealsTotalNum:mealsTotal, transportTotalNum:transportTotal, activitiesTotalNum:activitiesTotal,
+      grandTotal:this.fmt(grandTotal),
+      roomsLine:`${room.label} × ${s.roomCount} × ${nights||0} night${nights===1?'':'s'}`,
+      mealsLine:`Meals · ${persons} guest${persons>1?'s':''} × ${nights||0} day${nights===1?'':'s'}`,
+      hasMeals: mealsTotal>0, hasTransport: transportTotal>0, hasActivities: activitiesTotal>0,
+      selectedActivities, hasSelectedActivities: selectedActivities.length>0,
+      // gating + nav
+      canContinue, cannotContinue: !canContinue, issuesText: issues.join(' · '),
+      continueStyle: { width:'100%', cursor:canContinue?'pointer':'not-allowed', border:'none', borderRadius:'999px', padding:'16px', fontFamily:"'Hanken Grotesk',sans-serif", fontWeight:700, fontSize:'16px', background:canContinue?'#B65C36':'#d9c4a8', color:canContinue?'#F4ECDD':'#9a8a6f', transition:'all .2s ease' },
+      goReview:()=>{ if(canContinue){ this.set({step:2}); window.scrollTo(0,0);} },
+      goBack:()=>this.set({step:1}),
+      submit:()=>{ this.set({submitted:true}); window.scrollTo(0,0); },
+      submitted:s.submitted, notSubmitted:!s.submitted,
+      // review summary fields
+      foodSummary: isMixed ? `Mixed · ${s.vegCount} veg / ${s.nonvegCount} non-veg` : (s.foodPref==='veg'?'All Vegetarian':'All Non-Vegetarian'),
+      datesSummary: (s.checkIn&&s.checkOut)? `${new Date(s.checkIn).toLocaleDateString('en-IN',{day:'numeric',month:'short'})} → ${new Date(s.checkOut).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}` : '—',
+      guestsSummary: `${s.adults} adult${s.adults>1?'s':''}${s.children?` · ${s.children} child${s.children>1?'ren':''}`:''}`,
+      beddingSummary: s.extraBedding ? 'Extra bedding requested' : '',
+      transportSummary: s.transportReq ? [s.pickup?`Pickup: ${this.TRANSPORT[s.pickup].label}`:null, s.drop?`Drop: ${this.TRANSPORT[s.drop].label}`:null].filter(Boolean).join(' · ') : 'Not required',
+      requestsSummary: s.requests || '—'
+    };
+  }
+
+  segStyle(active){
+    return { flex:'1', cursor:'pointer', textAlign:'center', padding:'13px 10px', borderRadius:'10px',
+      fontWeight:600, fontSize:'15px', border:'none', transition:'all .15s ease',
+      background: active?'#2C2013':'transparent', color: active?'#F4ECDD':'#5a4f3f' };
+  }
+  toggleStyle(active){
+    return { display:'inline-flex', alignItems:'center', gap:'10px', cursor:'pointer', userSelect:'none',
+      padding:'10px 16px', borderRadius:'999px', fontWeight:600, fontSize:'15px', transition:'all .15s ease',
+      border: active?'1.5px solid #B65C36':'1.5px solid #cdb793', background: active?'#fbeede':'transparent', color:'#2C2013' };
+  }
+}
+</script>
+</body>
+</html>

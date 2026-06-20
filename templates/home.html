@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mondys · Organic farm stay in Kudal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; }
+  ::selection { background: #B65C36; color: #F4ECDD; }
+
+  .img-ph {
+    background: linear-gradient(135deg, #e3d6bf 0%, #cdb793 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #5a4f3f; font-family: 'Caveat', cursive; font-size: 20px;
+    text-align: center; padding: 12px; min-height: 200px; border-radius: inherit;
+  }
+  .img-ph.rounded { border-radius: 16px; }
+  .tab-btn {
+    cursor: pointer; padding: 12px 26px; border-radius: 999px;
+    font-family: 'Hanken Grotesk', sans-serif; font-weight: 600; font-size: 16px;
+    border: 1.5px solid #cdb793; background: transparent; color: #5a4f3f;
+    transition: all .2s ease;
+  }
+  .tab-btn.active { background: #2C2013; color: #F4ECDD; border-color: transparent; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  @media (max-width: 900px) {
+    nav { padding: 14px 20px !important; }
+    nav > div { gap: 14px !important; font-size: 13px !important; }
+    nav a.cta { padding: 8px 14px !important; }
+    header { grid-template-columns: 1fr !important; }
+    header > div:first-child { padding: 56px 24px 32px !important; }
+    header > div:first-child h1 { font-size: 42px !important; }
+    section { padding-left: 24px !important; padding-right: 24px !important; }
+    section > div[style*="grid-template-columns:1fr 1fr"],
+    section > div > div[style*="grid-template-columns:1fr 1fr"],
+    section > div[style*="grid-template-columns:repeat(3,1fr)"],
+    section > div > div[style*="grid-template-columns:repeat(3,1fr)"],
+    section > div[style*="grid-template-columns:repeat(4,1fr)"],
+    section > div > div[style*="grid-template-columns:repeat(4,1fr)"] {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div style="background:#F4ECDD; font-family:'Hanken Grotesk',sans-serif; color:#2C2013; overflow-x:hidden;">
+
+  <!-- ================= NAV ================= -->
+  <nav style="position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between; padding:16px 48px; background:rgba(244,236,221,.88); backdrop-filter:blur(10px); border-bottom:1px solid #e3d6bf;">
+    <a href="#top" style="text-decoration:none; font-family:'Newsreader',serif; font-size:26px; font-weight:600; color:#2C2013; letter-spacing:.02em;">Mondys<span style="color:#B65C36;">.</span></a>
+    <div style="display:flex; gap:28px; align-items:center; font-size:15px; color:#5a4f3f; font-weight:500; white-space:nowrap;">
+      <a href="#rooms" style="text-decoration:none; color:inherit;">Rooms</a>
+      <a href="#activities" style="text-decoration:none; color:inherit;">Activities</a>
+      <a href="#meals" style="text-decoration:none; color:inherit;">Meals</a>
+      <a href="#explore" style="text-decoration:none; color:inherit;">Gallery</a>
+      <a href="#reach" style="text-decoration:none; color:inherit;">Reach Us</a>
+      <a href="{{ wa_link }}" class="cta" style="text-decoration:none; background:#B65C36; color:#F4ECDD; padding:11px 22px; border-radius:999px; font-weight:600;">Book a Stay</a>
+    </div>
+  </nav>
+
+  <!-- ================= HERO ================= -->
+  <header id="top" style="display:grid; grid-template-columns:1.08fr 0.92fr; gap:0; max-width:1320px; margin:0 auto; align-items:stretch;">
+    <div style="padding:84px 56px 72px;">
+      <div style="font-family:'Caveat',cursive; font-size:28px; color:#6E7544; margin-bottom:10px;">an organic farm stay in Kudal</div>
+      <h1 style="font-family:'Newsreader',serif; font-weight:500; font-size:66px; line-height:1.02; margin:0 0 24px; letter-spacing:-0.02em;">Wake to birdsong, eat what you <em style="font-style:italic; color:#B65C36;">picked yourself.</em></h1>
+      <p style="font-size:18px; line-height:1.65; color:#5a4f3f; max-width:460px; margin:0 0 34px;">A two-acre family farm in the Konkan green belt. Petting barns, bullock-cart rides, kayaks on the creek, and a breakfast plate you harvest at dawn — close to Malvan's beaches and the Sahyadri foothills.</p>
+      <div style="display:flex; gap:14px; align-items:center; margin-bottom:44px; flex-wrap:wrap;">
+        <a href="{{ wa_link }}" style="text-decoration:none; background:#B65C36; color:#F4ECDD; padding:16px 30px; border-radius:999px; font-weight:600; font-size:16px;">Book a Stay</a>
+        <a href="#rooms" style="text-decoration:none; border:1.5px solid #cdb793; color:#2C2013; padding:15px 26px; border-radius:999px; font-weight:600; font-size:16px;">Explore rooms →</a>
+      </div>
+      <div style="display:flex; gap:40px; border-top:1px solid #e3d6bf; padding-top:26px;">
+        <div><div style="font-family:'Newsreader',serif; font-size:32px;">2</div><div style="font-size:13px; color:#8a7c66; letter-spacing:.03em;">room types</div></div>
+        <div><div style="font-family:'Newsreader',serif; font-size:32px;">10+</div><div style="font-size:13px; color:#8a7c66; letter-spacing:.03em;">farm activities</div></div>
+        <div><div style="font-family:'Newsreader',serif; font-size:32px;">farm</div><div style="font-size:13px; color:#8a7c66; letter-spacing:.03em;">to-table meals</div></div>
+      </div>
+    </div>
+    <div style="position:relative; min-height:600px;">
+      <div class="img-ph" style="position:absolute; inset:0; width:100%; height:100%;">Drop your farm hero photo</div>
+      <div style="position:absolute; left:24px; bottom:24px; background:rgba(44,32,19,.78); color:#F4ECDD; padding:16px 20px; border-radius:12px; backdrop-filter:blur(4px); pointer-events:none;">
+        <div style="font-family:'Newsreader',serif; font-size:18px;">Family Suite · sleeps 4</div>
+        <div style="font-size:13px; opacity:.82;">from ₹6,000 / night</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= STORY STRIP ================= -->
+  <section style="background:#6E7544; color:#F4ECDD; padding:64px 48px;">
+    <div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:0.8fr 1.2fr; gap:48px; align-items:center;">
+      <div style="font-family:'Caveat',cursive; font-size:30px; color:#E9C57E;">our little corner of Konkan</div>
+      <p style="font-family:'Newsreader',serif; font-weight:400; font-size:28px; line-height:1.4; margin:0;">Mondys began as a family farm and grew into a place to share it. We keep things small — only two suites and two dorms — so mornings stay quiet, the food stays fresh, and the animals still come when you call them.</p>
+    </div>
+  </section>
+
+  <!-- ================= ROOMS ================= -->
+  <section id="rooms" style="max-width:1200px; margin:0 auto; padding:88px 48px 40px;">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:40px; flex-wrap:wrap;">
+      <div>
+        <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">where you'll sleep</div>
+        <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Two ways to stay</h2>
+      </div>
+      <p style="max-width:360px; color:#5a4f3f; font-size:15px; line-height:1.6; margin:0;">Just four rooms in total, so it never feels crowded. Rates are per room, per night — meals optional and priced separately.</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:28px;">
+      <!-- Family Suite -->
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; overflow:hidden;">
+        <div style="position:relative; height:280px;">
+          <div class="img-ph" style="position:absolute; inset:0;">Drop a Family Suite photo</div>
+          <span style="position:absolute; top:18px; left:18px; background:rgba(44,32,19,.8); color:#F4ECDD; font-size:12px; letter-spacing:.08em; text-transform:uppercase; padding:6px 12px; border-radius:999px; pointer-events:none;">Only 2 available</span>
+        </div>
+        <div style="padding:28px 30px 30px;">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
+            <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:30px; margin:0;">Family Suite</h3>
+            <div style="text-align:right;"><div style="font-family:'Newsreader',serif; font-size:26px; color:#B65C36;">₹6,000</div><div style="font-size:12px; color:#8a7c66;">/ night</div></div>
+          </div>
+          <p style="color:#5a4f3f; font-size:15px; line-height:1.6; margin:14px 0 20px;">A private suite for the whole family — a comfortable double plus space for the kids, with a view onto the orchard.</p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px;">
+            <span style="background:#f0e6d2; color:#5a4f3f; font-size:14px; padding:8px 14px; border-radius:8px; font-weight:500;">👪 Sleeps 4</span>
+            <span style="background:#f0e6d2; color:#5a4f3f; font-size:14px; padding:8px 14px; border-radius:8px; font-weight:500;">Private bath</span>
+            <span style="background:#f0e6d2; color:#5a4f3f; font-size:14px; padding:8px 14px; border-radius:8px; font-weight:500;">Orchard view</span>
+          </div>
+          <a href="{{ wa_link }}" style="text-decoration:none; display:inline-block; background:#B65C36; color:#F4ECDD; padding:13px 26px; border-radius:999px; font-weight:600; font-size:15px;">Book Family Suite</a>
+        </div>
+      </div>
+
+      <!-- Dormitory -->
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; overflow:hidden;">
+        <div style="position:relative; height:280px;">
+          <div class="img-ph" style="position:absolute; inset:0;">Drop a Dormitory photo</div>
+          <span style="position:absolute; top:18px; left:18px; background:rgba(44,32,19,.8); color:#F4ECDD; font-size:12px; letter-spacing:.08em; text-transform:uppercase; padding:6px 12px; border-radius:999px; pointer-events:none;">Only 2 available</span>
+        </div>
+        <div style="padding:28px 30px 30px;">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
+            <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:30px; margin:0;">Dormitory</h3>
+            <div style="text-align:right;"><div style="font-family:'Newsreader',serif; font-size:26px; color:#B65C36;">₹4,000</div><div style="font-size:12px; color:#8a7c66;">/ night</div></div>
+          </div>
+          <p style="color:#5a4f3f; font-size:15px; line-height:1.6; margin:14px 0 20px;">Made for friend groups — six bunks in one airy room, perfect for a weekend of trekking, kayaking and late-night card games.</p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px;">
+            <span style="background:#f0e6d2; color:#5a4f3f; font-size:14px; padding:8px 14px; border-radius:8px; font-weight:500;">🛏 Sleeps 6</span>
+            <span style="background:#f0e6d2; color:#5a4f3f; font-size:14px; padding:8px 14px; border-radius:8px; font-weight:500;">Shared bath</span>
+            <span style="background:#f0e6d2; color:#5a4f3f; font-size:14px; padding:8px 14px; border-radius:8px; font-weight:500;">Great for groups</span>
+          </div>
+          <a href="{{ wa_link }}" style="text-decoration:none; display:inline-block; background:#B65C36; color:#F4ECDD; padding:13px 26px; border-radius:999px; font-weight:600; font-size:15px;">Book Dormitory</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ACTIVITIES ================= -->
+  <section id="activities" style="background:#2C2013; color:#F4ECDD; padding:88px 48px;">
+    <div style="max-width:1200px; margin:0 auto;">
+      <div style="text-align:center; margin-bottom:48px;">
+        <div style="font-family:'Caveat',cursive; font-size:26px; color:#E9C57E;">there's always something to do</div>
+        <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Activities &amp; adventures</h2>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:28px;">
+        <!-- Farm Activities -->
+        <div style="background:#372a1a; border:1px solid #4a3a26; border-radius:18px; padding:32px 34px;">
+          <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:26px; margin:0 0 6px;">🌿 Farm Activities</h3>
+          <div style="font-size:13px; color:#b8a888; margin-bottom:22px;">right here on the property</div>
+          <div style="display:flex; flex-direction:column;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:14px 0; border-top:1px solid #4a3a26;"><span style="font-size:17px; color:#F4ECDD;">Animal Petting</span><span style="font-size:13px; color:#cdbf9f; text-align:right; white-space:nowrap;">Free · all guests · 1 hr</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:14px 0; border-top:1px solid #4a3a26;"><span style="font-size:17px; color:#F4ECDD;">Bullock Cart Ride</span><span style="font-size:13px; color:#cdbf9f; text-align:right; white-space:nowrap;">₹100/guest · 15 mins</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:14px 0; border-top:1px solid #4a3a26;"><span style="font-size:17px; color:#F4ECDD;">Pick Your Breakfast Plate</span><span style="font-size:13px; color:#cdbf9f; text-align:right; white-space:nowrap;">₹300/guest · 30 mins</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:14px 0; border-top:1px solid #4a3a26;"><span style="font-size:17px; color:#F4ECDD;">Trekking</span><span style="font-size:13px; color:#cdbf9f; text-align:right; white-space:nowrap;">Free · all guests · 2 hrs</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:14px 0; border-top:1px solid #4a3a26;"><span style="font-size:17px; color:#F4ECDD;">Gazebo Rain Dance</span><span style="font-size:13px; color:#cdbf9f; text-align:right; white-space:nowrap;">₹150/guest · 2 hrs</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:14px 0; border-top:1px solid #4a3a26;"><span style="font-size:17px; color:#F4ECDD;">Indoor Games</span><span style="font-size:13px; color:#cdbf9f; text-align:right; white-space:nowrap;">₹150/guest · 3–4 hrs</span></div>
+          </div>
+        </div>
+
+        <!-- Outdoor Adventures -->
+        <div style="background:#372a1a; border:1px solid #4a3a26; border-radius:18px; padding:32px 34px;">
+          <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:26px; margin:0 0 6px;">🌊 Outdoor Adventures</h3>
+          <div style="font-size:13px; color:#b8a888; margin-bottom:22px;">a short drive to the coast</div>
+          <div style="display:flex; flex-direction:column;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:14px 0; border-top:1px solid #4a3a26;"><span style="font-size:17px; color:#F4ECDD;">Kayaking</span><span style="font-size:13px; color:#cdbf9f; text-align:right; white-space:nowrap;">₹400/boat · 1 hour</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:14px 0; border-top:1px solid #4a3a26;"><span style="font-size:17px; color:#F4ECDD;">Beach &amp; Temple Visit</span><span style="font-size:13px; color:#cdbf9f; text-align:right; white-space:nowrap;">Free · transport extra</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:14px 0; border-top:1px solid #4a3a26;"><span style="font-size:17px; color:#F4ECDD;">Malvan Water Sports</span><span style="font-size:13px; color:#cdbf9f; text-align:right; white-space:nowrap;">Free · local fare applies</span></div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; gap:16px; padding:14px 0; border-top:1px solid #4a3a26;"><span style="font-size:17px; color:#F4ECDD;">Vengurla Beach</span><span style="font-size:13px; color:#cdbf9f; text-align:right; white-space:nowrap;">Free · transport extra</span></div>
+            <div style="margin-top:20px; padding:16px 18px; background:#2C2013; border-radius:12px; font-family:'Caveat',cursive; font-size:19px; color:#E9C57E;">Tell us at check-in and we'll help arrange the day ✶</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MEALS ================= -->
+  <section id="meals" style="max-width:1200px; margin:0 auto; padding:88px 48px;">
+    <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:40px; flex-wrap:wrap;">
+      <div>
+        <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">grown a few steps from your plate</div>
+        <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Meal plans</h2>
+      </div>
+      <p style="max-width:340px; color:#5a4f3f; font-size:15px; line-height:1.6; margin:0;">Add a plan to any room. Priced per guest, per day — Breakfast ₹200 · Lunch ₹350 · Dinner ₹400.</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px;">
+      <div style="background:#B65C36; color:#F4ECDD; border-radius:18px; padding:30px 28px; position:relative; grid-row:span 1;">
+        <span style="position:absolute; top:18px; right:18px; background:#E9C57E; color:#2C2013; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:5px 11px; border-radius:999px;">Most picked</span>
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:24px; margin:0 0 4px;">All Meals · BLD</h3>
+        <p style="font-size:13px; opacity:.85; margin:0 0 18px;">Breakfast, lunch &amp; dinner</p>
+        <div style="font-family:'Newsreader',serif; font-size:44px; line-height:1;">₹950<span style="font-size:15px; font-family:'Hanken Grotesk'; opacity:.8;"> /guest/day</span></div>
+      </div>
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:22px; margin:0 0 4px;">Lunch + Dinner</h3>
+        <p style="font-size:13px; color:#8a7c66; margin:0 0 18px;">Skip the early start</p>
+        <div style="font-family:'Newsreader',serif; font-size:38px; color:#2C2013; line-height:1;">₹750<span style="font-size:14px; font-family:'Hanken Grotesk'; color:#8a7c66;"> /guest/day</span></div>
+      </div>
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:22px; margin:0 0 4px;">Breakfast + Dinner</h3>
+        <p style="font-size:13px; color:#8a7c66; margin:0 0 18px;">Out exploring midday</p>
+        <div style="font-family:'Newsreader',serif; font-size:38px; color:#2C2013; line-height:1;">₹600<span style="font-size:14px; font-family:'Hanken Grotesk'; color:#8a7c66;"> /guest/day</span></div>
+      </div>
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:22px; margin:0 0 4px;">Dinner Only</h3>
+        <div style="font-family:'Newsreader',serif; font-size:38px; color:#2C2013; line-height:1; margin-top:18px;">₹400<span style="font-size:14px; font-family:'Hanken Grotesk'; color:#8a7c66;"> /guest/day</span></div>
+      </div>
+      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; padding:28px;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:22px; margin:0 0 4px;">Breakfast Only</h3>
+        <div style="font-family:'Newsreader',serif; font-size:38px; color:#2C2013; line-height:1; margin-top:18px;">₹200<span style="font-size:14px; font-family:'Hanken Grotesk'; color:#8a7c66;"> /guest/day</span></div>
+      </div>
+      <div style="background:#efe6d3; border:1px dashed #c8b88f; border-radius:18px; padding:28px; display:flex; flex-direction:column; justify-content:center;">
+        <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:22px; margin:0 0 4px; color:#5a4f3f;">No Meals</h3>
+        <p style="font-size:13px; color:#8a7c66; margin:0;">Self-arrange · ₹0</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TRANSPORT ================= -->
+  <section id="reach" style="background:#6E7544; color:#F4ECDD; padding:88px 48px;">
+    <div style="max-width:1100px; margin:0 auto;">
+      <div style="text-align:center; margin-bottom:46px;">
+        <div style="font-family:'Caveat',cursive; font-size:26px; color:#E9C57E;">we'll come get you</div>
+        <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 8px; letter-spacing:-0.01em;">Reaching the farm</h2>
+        <p style="color:#e6ddc8; font-size:15px; max-width:520px; margin:0 auto; line-height:1.6;">Pickup &amp; drop can be arranged from any of these points. Fares are one-way, per vehicle — let us know your train or flight time.</p>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+        <div style="background:rgba(244,236,221,.08); border:1px solid rgba(244,236,221,.18); border-radius:16px; padding:26px 24px;">
+          <div style="font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#E9C57E; margin-bottom:10px;">🚆 Railway</div>
+          <div style="font-family:'Newsreader',serif; font-size:21px; margin-bottom:14px;">Kudal Station</div>
+          <div style="font-family:'Newsreader',serif; font-size:30px;">₹500</div>
+        </div>
+        <div style="background:rgba(244,236,221,.08); border:1px solid rgba(244,236,221,.18); border-radius:16px; padding:26px 24px;">
+          <div style="font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#E9C57E; margin-bottom:10px;">🚆 Railway</div>
+          <div style="font-family:'Newsreader',serif; font-size:21px; margin-bottom:14px;">Sawantwadi Station</div>
+          <div style="font-family:'Newsreader',serif; font-size:30px;">₹600</div>
+        </div>
+        <div style="background:rgba(244,236,221,.08); border:1px solid rgba(244,236,221,.18); border-radius:16px; padding:26px 24px;">
+          <div style="font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#E9C57E; margin-bottom:10px;">✈️ Airport</div>
+          <div style="font-family:'Newsreader',serif; font-size:21px; margin-bottom:14px;">Chipi Airport</div>
+          <div style="font-family:'Newsreader',serif; font-size:30px;">₹700</div>
+        </div>
+        <div style="background:rgba(244,236,221,.08); border:1px solid rgba(244,236,221,.18); border-radius:16px; padding:26px 24px;">
+          <div style="font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#E9C57E; margin-bottom:10px;">✈️ Airport</div>
+          <div style="font-family:'Newsreader',serif; font-size:21px; margin-bottom:14px;">Mopa Airport</div>
+          <div style="font-family:'Newsreader',serif; font-size:30px;">₹800</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TABS: GALLERY / FACILITIES / REVIEWS ================= -->
+  <section id="explore" style="max-width:1200px; margin:0 auto; padding:88px 48px 40px;">
+    <div style="text-align:center; margin-bottom:32px;">
+      <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">take a look around</div>
+      <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Explore Mondys</h2>
+    </div>
+
+    <div style="display:flex; gap:12px; justify-content:center; margin-bottom:40px; flex-wrap:wrap;">
+      <button class="tab-btn active" data-tab="gallery">Photo Gallery</button>
+      <button class="tab-btn" data-tab="facilities">Facilities</button>
+      <button class="tab-btn" data-tab="reviews">Reviews</button>
+    </div>
+
+    <!-- GALLERY -->
+    <div class="tab-panel active" id="tab-gallery">
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:200px; gap:14px;">
+        <div class="img-ph rounded" style="grid-column:span 2; grid-row:span 2;">The farmhouse</div>
+        <div class="img-ph rounded">Paddy fields</div>
+        <div class="img-ph rounded">Breakfast spread</div>
+        <div class="img-ph rounded">Family suite</div>
+        <div class="img-ph rounded">Dormitory</div>
+        <div class="img-ph rounded" style="grid-column:span 2;">Bullock cart at the gate</div>
+        <div class="img-ph rounded">The goats</div>
+        <div class="img-ph rounded">Gazebo</div>
+        <div class="img-ph rounded">Kayaking</div>
+        <div class="img-ph rounded">Bonfire nights</div>
+      </div>
+      <p style="text-align:center; color:#8a7c66; font-size:14px; margin-top:22px;">Drop real farm photos into these tiles when you're ready.</p>
+    </div>
+
+    <!-- FACILITIES -->
+    <div class="tab-panel" id="tab-facilities">
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:18px;">
+        <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; padding:26px;"><div style="font-size:28px; margin-bottom:10px;">🍲</div><h4 style="font-family:'Newsreader',serif; font-weight:500; font-size:20px; margin:0 0 6px;">Organic farm kitchen</h4><p style="font-size:14px; color:#5a4f3f; margin:0; line-height:1.55;">Home-cooked Konkan meals from produce grown on site.</p></div>
+        <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; padding:26px;"><div style="font-size:28px; margin-bottom:10px;">🔥</div><h4 style="font-family:'Newsreader',serif; font-weight:500; font-size:20px; margin:0 0 6px;">Bonfire &amp; gazebo</h4><p style="font-size:14px; color:#5a4f3f; margin:0; line-height:1.55;">Evening bonfire pit and a covered gazebo for rain-dance fun.</p></div>
+        <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; padding:26px;"><div style="font-size:28px; margin-bottom:10px;">🐐</div><h4 style="font-family:'Newsreader',serif; font-weight:500; font-size:20px; margin:0 0 6px;">Petting barn</h4><p style="font-size:14px; color:#5a4f3f; margin:0; line-height:1.55;">Goats, hens and cattle the kids can feed and meet.</p></div>
+        <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; padding:26px;"><div style="font-size:28px; margin-bottom:10px;">🎲</div><h4 style="font-family:'Newsreader',serif; font-weight:500; font-size:20px; margin:0 0 6px;">Indoor games room</h4><p style="font-size:14px; color:#5a4f3f; margin:0; line-height:1.55;">Carrom, board games and cards for lazy afternoons.</p></div>
+        <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; padding:26px;"><div style="font-size:28px; margin-bottom:10px;">🚗</div><h4 style="font-family:'Newsreader',serif; font-weight:500; font-size:20px; margin:0 0 6px;">Pickup &amp; parking</h4><p style="font-size:14px; color:#5a4f3f; margin:0; line-height:1.55;">Station/airport transfers on request and free on-site parking.</p></div>
+        <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; padding:26px;"><div style="font-size:28px; margin-bottom:10px;">🚿</div><h4 style="font-family:'Newsreader',serif; font-weight:500; font-size:20px; margin:0 0 6px;">Hot water &amp; essentials</h4><p style="font-size:14px; color:#5a4f3f; margin:0; line-height:1.55;">Hot water, clean linens and the everyday comforts you need.</p></div>
+      </div>
+    </div>
+
+    <!-- REVIEWS -->
+    <div class="tab-panel" id="tab-reviews">
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px;">
+        <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; padding:28px;"><div style="color:#D49B3E; font-size:16px; letter-spacing:2px; margin-bottom:14px;">★★★★★</div><p style="font-family:'Newsreader',serif; font-size:19px; line-height:1.5; color:#2C2013; margin:0 0 20px;">"The kids didn't touch a screen all weekend. Picking our own breakfast was the highlight."</p><div style="font-weight:600; font-size:15px;">Anita &amp; family</div><div style="font-size:13px; color:#8a7c66;">Pune · Family Suite</div></div>
+        <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; padding:28px;"><div style="color:#D49B3E; font-size:16px; letter-spacing:2px; margin-bottom:14px;">★★★★★</div><p style="font-family:'Newsreader',serif; font-size:19px; line-height:1.5; color:#2C2013; margin:0 0 20px;">"Booked the dorm for eight friends. Kayaking, bonfire, bullock cart — perfect Konkan reset."</p><div style="font-weight:600; font-size:15px;">Rohan</div><div style="font-size:13px; color:#8a7c66;">Mumbai · Dormitory</div></div>
+        <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; padding:28px;"><div style="color:#D49B3E; font-size:16px; letter-spacing:2px; margin-bottom:14px;">★★★★★</div><p style="font-family:'Newsreader',serif; font-size:19px; line-height:1.5; color:#2C2013; margin:0 0 20px;">"Genuinely warm hosts and food that tasted like it came from the garden — because it did."</p><div style="font-weight:600; font-size:15px;">Meera</div><div style="font-size:13px; color:#8a7c66;">Bengaluru · Family Suite</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CTA + FOOTER ================= -->
+  <section style="max-width:1200px; margin:40px auto 0; padding:0 48px 80px;">
+    <div style="background:#2C2013; color:#F4ECDD; border-radius:24px; padding:72px 56px; text-align:center; position:relative; overflow:hidden;">
+      <div style="position:absolute; inset:0; background-image:radial-gradient(circle at 80% 10%, rgba(212,155,62,.18), transparent 45%), radial-gradient(circle at 10% 90%, rgba(110,117,68,.30), transparent 50%);"></div>
+      <div style="position:relative;">
+        <div style="font-family:'Caveat',cursive; font-size:28px; color:#E9C57E;">come stay with us</div>
+        <h2 style="font-family:'Newsreader',serif; font-weight:400; font-size:52px; margin:6px 0 22px; line-height:1.05;">Two suites. Two dorms.<br>One unforgettable farm.</h2>
+        <a href="{{ wa_link }}" style="text-decoration:none; display:inline-block; background:#B65C36; color:#F4ECDD; padding:17px 40px; border-radius:999px; font-weight:600; font-size:17px;">Book a Stay</a>
+        <p style="color:#b8a888; font-size:14px; margin:20px 0 0;">Chat with us on WhatsApp — share your name &amp; email, pick your dates, and we'll confirm within a day.</p>
+      </div>
+    </div>
+
+    <footer style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:24px; padding:48px 8px 0;">
+      <div>
+        <div style="font-family:'Newsreader',serif; font-size:24px; font-weight:600;">Mondys<span style="color:#B65C36;">.</span></div>
+        <div style="font-size:14px; color:#8a7c66; margin-top:6px;">Organic farm stay · Kudal, Sindhudurg, Maharashtra</div>
+      </div>
+      <div style="display:flex; gap:28px; font-size:14px; color:#5a4f3f; font-weight:500;">
+        <a href="#rooms" style="text-decoration:none; color:inherit;">Rooms</a>
+        <a href="#activities" style="text-decoration:none; color:inherit;">Activities</a>
+        <a href="#meals" style="text-decoration:none; color:inherit;">Meals</a>
+        <a href="#reach" style="text-decoration:none; color:inherit;">Reach Us</a>
+      </div>
+    </footer>
+  </section>
+
+</div>
+
+<script>
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+      document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === "tab-" + tab));
+    });
+  });
+</script>
+</body>
+</html>

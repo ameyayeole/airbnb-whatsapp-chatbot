@@ -6,11 +6,15 @@ Flow A — Explore the Farm  (info / FAQ)
 Flow B — Book a Stay       (8-step guided booking)
 """
 import re
+import secrets
 from datetime import date, timedelta
 import whatsapp
 import database
 import pricing
 import config
+
+
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SESSION
@@ -336,18 +340,44 @@ def _start_booking(phone: str):
     whatsapp.send_text(
         phone,
         f"Let's get your booking started, *{s['guest_name']}*! 🎉\n\n"
-        "What's your *email address*? _(Type 'skip' to skip)_",
+        "What's your *email address*? We'll send your booking confirmation there.",
     )
     _state(phone, "ASK_EMAIL")
 
 
-# ── Step 1: Guest Details ─────────────────────────────────────────────────────
+# ── Booking handoff: collect email, then send a link to the website ──────────
 
 def _ask_email(phone: str, content: str):
-    email = None if content.lower().strip() == "skip" else content.strip()
+    email = content.strip()
+    if not _EMAIL_RE.match(email):
+        whatsapp.send_text(
+            phone,
+            "Hmm, that doesn't look like an email. Try again — e.g. _you@example.com_",
+        )
+        return
     _set(phone, "email", email)
-    whatsapp.send_text(phone, "How many *adults* will be staying?\nEnter a number:")
-    _state(phone, "ASK_ADULTS")
+
+    s = _session(phone)
+    token = secrets.token_urlsafe(16)
+    database.create_booking_token(
+        token=token,
+        phone=phone,
+        guest_name=s["guest_name"],
+        email=email,
+    )
+    url = f"{config.BASE_URL.rstrip('/')}/book/{token}"
+
+    whatsapp.send_text(
+        phone,
+        f"All set, *{s['guest_name']}* ✨\n\n"
+        f"Continue your booking on our website 👇\n"
+        f"{url}\n\n"
+        f"You'll pick your dates, room, meals & activities — then send us the request. "
+        f"We'll confirm availability and payment shortly after.\n\n"
+        f"_The link is unique to you — don't share it._\n\n"
+        f"Type *Hi* anytime to start over, or *Menu* to browse the farm.",
+    )
+    _state(phone, "BOOKING_LINK_SENT")
 
 
 def _ask_adults(phone: str, content: str):
@@ -1268,9 +1298,13 @@ def _info_menu(phone: str, content: str):
 
 
 def _info_back(phone: str):
-    """Send back/book buttons after every info response."""
+    """Send back/book buttons + homepage link after every info response."""
+    url = config.BASE_URL.rstrip("/") + "/"
     whatsapp.send_buttons(
-        phone, "What would you like to do next?",
+        phone,
+        f"For more details, visit our website 👇\n"
+        f"{url}\n\n"
+        f"What would you like to do next?",
         [
             {"id": "inf_back", "title": "Back to Menu"},
             {"id": "path_book","title": "Book a Stay"},
@@ -1468,7 +1502,7 @@ def handle_message(phone: str, msg_type: str, content: str):
         return
 
     if content_lower in _INFO_WORDS and state not in ("ASK_NAME", "ASK_PATH"):
-        _show_info_menu(phone)
+        _send_explore_link(phone)
         return
 
     if content_lower in _BOOK_WORDS and state not in ("ASK_NAME", "ASK_PATH"):
