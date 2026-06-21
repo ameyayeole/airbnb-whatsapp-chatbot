@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% block title %}Bookings · Mondys admin{% endblock %}
+{% block content %}
+<h1>Bookings</h1>
+
+<div class="card" style="padding:14px 22px;">
+  <a href="{{ url_for('admin.bookings_list') }}" class="btn sm {% if not status %}primary{% endif %}">All</a>
+  <a href="{{ url_for('admin.bookings_list', status='pending_payment') }}" class="btn sm {% if status=='pending_payment' %}primary{% endif %}">Pending</a>
+  <a href="{{ url_for('admin.bookings_list', status='confirmed') }}" class="btn sm {% if status=='confirmed' %}primary{% endif %}">Confirmed</a>
+  <a href="{{ url_for('admin.bookings_list', status='cancelled') }}" class="btn sm {% if status=='cancelled' %}primary{% endif %}">Cancelled</a>
+</div>
+
+<div class="card">
+  {% if bookings %}
+  <table>
+    <thead><tr>
+      <th>Ref</th><th>Status</th><th>Guest</th><th>Dates</th><th>Room</th><th>Total</th><th>Advance</th><th>Created</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for b in bookings %}
+      <tr>
+        <td class="mono">{{ b.booking_ref }}</td>
+        <td>
+          {% if b.status == 'pending_payment' %}<span class="pill pending">Pending</span>
+          {% elif b.status == 'confirmed' %}<span class="pill confirmed">Confirmed</span>
+          {% elif b.status == 'cancelled' %}<span class="pill cancelled">Cancelled</span>
+          {% else %}<span class="pill">{{ b.status }}</span>{% endif %}
+        </td>
+        <td>{{ b.guest_name }}<br><span class="muted">+{{ b.phone }}</span></td>
+        <td>{{ b.check_in }} → {{ b.check_out }}<br><span class="muted">{{ b.nights }} night(s) · {{ b.adults }}+{{ b.children }} pax</span></td>
+        <td>{{ b.room_type }} × {{ b.room_count }}</td>
+        <td>₹{{ '{:,}'.format(b.total_amount or 0) }}</td>
+        <td>₹{{ '{:,}'.format(b.advance_amount or 0) }}</td>
+        <td class="muted">{{ b.created_at.strftime('%d %b, %H:%M') if b.created_at else '' }}</td>
+        <td><a class="btn sm" href="{{ url_for('admin.booking_detail', booking_id=b.id) }}">Open</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No bookings.</p>
+  {% endif %}
+</div>
+{% endblock %}

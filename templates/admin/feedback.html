@@ -1,0 +1,81 @@
+{% extends "admin/base.html" %}
+{% block title %}Feedback · Mondys admin{% endblock %}
+{% block content %}
+<div class="kicker" style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">what guests are saying</div>
+<h1>Feedback</h1>
+
+<div class="filter-bar">
+  <a href="{{ url_for('admin.feedback_list') }}" class="btn sm {% if not status %}primary{% endif %}">All</a>
+  <a href="{{ url_for('admin.feedback_list', status='pending') }}"  class="btn sm {% if status=='pending'  %}primary{% endif %}">Pending</a>
+  <a href="{{ url_for('admin.feedback_list', status='approved') }}" class="btn sm {% if status=='approved' %}primary{% endif %}">Approved</a>
+  <a href="{{ url_for('admin.feedback_list', status='rejected') }}" class="btn sm {% if status=='rejected' %}primary{% endif %}">Rejected</a>
+</div>
+
+{% if items %}
+  {% for f in items %}
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+      <div>
+        <div style="font-family:'Newsreader',serif; font-size:22px;">{{ f.guest_name or 'Guest' }}</div>
+        <div class="muted mono">{{ f.booking_ref }} · {{ f.created_at.strftime('%d %b %Y, %H:%M') if f.created_at else '' }}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="color:#E9A867; font-size:22px; letter-spacing:2px;">{{ '★' * f.rating }}<span style="color:#cdb793;">{{ '★' * (5 - f.rating) }}</span></div>
+        {% if f.status == 'pending' %}<span class="pill pending">Pending</span>
+        {% elif f.status == 'approved' %}<span class="pill confirmed">Approved</span>
+        {% elif f.status == 'rejected' %}<span class="pill cancelled">Rejected</span>{% endif %}
+      </div>
+    </div>
+
+    {% if f.comment %}
+    <p style="font-family:'Newsreader',serif; font-size:18px; line-height:1.5; margin:18px 0 4px;">"{{ f.comment }}"</p>
+    {% else %}
+    <p class="muted" style="margin:14px 0 4px;">No comment</p>
+    {% endif %}
+
+    {% if f.media %}
+    <div style="margin-top:18px;">
+      <div class="muted" style="margin-bottom:10px;">Attached media — toggle to feature on website:</div>
+      <div class="grid4">
+        {% for m in f.media %}
+          <div class="photo-tile">
+            {% if m.kind == 'video' %}
+              <video src="{{ url_for('uploads', filename=m.filename) }}" controls style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:10px;"></video>
+            {% else %}
+              <img src="{{ url_for('uploads', filename=m.filename) }}" alt="">
+            {% endif %}
+            <div class="fname">{{ m.kind }} · {{ m.filename }}</div>
+            <form method="post" action="{{ url_for('admin.feedback_media_toggle', media_id=m.id) }}" class="inline">
+              <button type="submit" class="btn sm {% if m.approved %}primary{% endif %}" style="width:100%; margin-bottom:6px;">
+                {% if m.approved %}✓ Featured{% else %}Approve for website{% endif %}
+              </button>
+            </form>
+            <form method="post" action="{{ url_for('admin.feedback_media_delete', media_id=m.id) }}" class="inline" onsubmit="return confirm('Delete this media?');">
+              <button type="submit" class="btn sm danger" style="width:100%;">Delete</button>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div style="margin-top:22px; display:flex; gap:10px;">
+      {% if f.status != 'approved' %}
+      <form method="post" action="{{ url_for('admin.feedback_approve', feedback_id=f.id) }}" class="inline">
+        <button type="submit" class="btn primary">✓ Approve review</button>
+      </form>
+      {% endif %}
+      {% if f.status != 'rejected' %}
+      <form method="post" action="{{ url_for('admin.feedback_reject', feedback_id=f.id) }}" class="inline" onsubmit="return confirm('Reject this feedback?');">
+        <button type="submit" class="btn danger">Reject</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="card">
+    <p class="muted">No feedback yet.</p>
+  </div>
+{% endif %}
+{% endblock %}

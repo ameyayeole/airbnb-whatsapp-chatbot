@@ -1,0 +1,58 @@
+{% extends "admin/base.html" %}
+{% block title %}Meal plans · Mondys admin{% endblock %}
+{% block content %}
+<h1>Meal plans</h1>
+
+<div class="card">
+  <h2>Add / edit plan</h2>
+  <form method="post" action="{{ url_for('admin.meals_save') }}">
+    <input type="hidden" name="id" id="m-id">
+    <div class="grid4">
+      <div class="field"><label>Key (slug)</label><input type="text" name="key" id="m-key" required placeholder="bld"></div>
+      <div class="field"><label>Name</label><input type="text" name="name" id="m-name" required placeholder="All Meals (BLD)"></div>
+      <div class="field"><label>Price / guest / day (₹)</label><input type="number" name="price" id="m-price" required min="0"></div>
+      <div class="field"><label>Sort order</label><input type="number" name="sort_order" id="m-sort" value="0"></div>
+    </div>
+    <div class="field"><label><input type="checkbox" name="active" id="m-active" checked> Active</label></div>
+    <button type="submit" class="btn primary">Save</button>
+    <button type="button" class="btn" onclick="document.querySelector('form').reset(); document.getElementById('m-id').value='';">Clear</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>All plans</h2>
+  {% if meals %}
+  <table>
+    <thead><tr><th>Name</th><th>Key</th><th>Price</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+      {% for m in meals %}
+      <tr>
+        <td>{{ m.name }}</td>
+        <td class="mono">{{ m.key }}</td>
+        <td>₹{{ '{:,}'.format(m.price) }}</td>
+        <td>{% if m.active %}✓{% else %}✗{% endif %}</td>
+        <td>
+          <button class="btn sm" onclick='fillForm({{ m|tojson }})'>Edit</button>
+          <form class="inline" method="post" action="{{ url_for('admin.meals_delete', plan_id=m.id) }}" onsubmit="return confirm('Delete this plan?');">
+            <button class="btn sm danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No meal plans yet.</p>{% endif %}
+</div>
+
+<script>
+function fillForm(m) {
+  document.getElementById('m-id').value = m.id;
+  document.getElementById('m-key').value = m.key;
+  document.getElementById('m-name').value = m.name;
+  document.getElementById('m-price').value = m.price;
+  document.getElementById('m-sort').value = m.sort_order || 0;
+  document.getElementById('m-active').checked = !!m.active;
+  window.scrollTo(0, 0);
+}
+</script>
+{% endblock %}

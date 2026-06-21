@@ -154,10 +154,7 @@
       <div class="card">
         <h3>Choose your room</h3>
         <p class="sub">Rates per room, per night · only 2 of each type available.</p>
-        <div class="seg" style="margin-bottom:22px;">
-          <button data-room="Family Suite" class="active">Family Suite<br><span style="font-weight:400; font-size:12px; opacity:.7;">sleeps 4 · ₹6,000</span></button>
-          <button data-room="Dormitory Stay">Dormitory<br><span style="font-weight:400; font-size:12px; opacity:.7;">sleeps 6 · ₹4,000</span></button>
-        </div>
+        <div class="seg" id="roomSeg" style="margin-bottom:22px;"></div>
         <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
           <div>
             <label class="lab">Rooms</label>
@@ -221,12 +218,6 @@
             <span style="font-size:14px; color:#5a4f3f; font-weight:600;">Set every day to:</span>
             <select id="setAllMeals" class="mealsel" style="min-width:auto;">
               <option value="">Choose a plan…</option>
-              <option value="All Meals (BLD)">All Meals · BLD — ₹950</option>
-              <option value="Breakfast+Dinner">Breakfast + Dinner — ₹600</option>
-              <option value="Lunch+Dinner">Lunch + Dinner — ₹750</option>
-              <option value="Breakfast Only">Breakfast Only — ₹200</option>
-              <option value="Dinner Only">Dinner Only — ₹400</option>
-              <option value="No Meals">No Meals — ₹0</option>
             </select>
           </div>
           <div id="mealDays" style="display:flex; flex-direction:column; gap:10px;"></div>
@@ -249,19 +240,11 @@
               <label class="lab">Pickup from</label>
               <select id="pickup" class="dateInput" style="cursor:pointer;">
                 <option value="">Select a point…</option>
-                <option value="Kudal Railway Station">Kudal Railway Station — ₹500</option>
-                <option value="Sawantwadi Railway Station">Sawantwadi Railway Station — ₹600</option>
-                <option value="Chipi Airport">Chipi Airport — ₹700</option>
-                <option value="Mopa Airport">Mopa Airport — ₹800</option>
               </select>
             </div>
             <div>
               <label class="lab">Vehicle</label>
-              <select id="vehicle" class="dateInput" style="cursor:pointer;">
-                <option value="Sedan">Sedan (4-seater) ×1.0</option>
-                <option value="MUV">MUV (6-7 seater) ×1.5</option>
-                <option value="Charter Bus">Charter Bus (20+) ×3.0</option>
-              </select>
+              <select id="vehicle" class="dateInput" style="cursor:pointer;"></select>
             </div>
           </div>
         </div>
@@ -352,7 +335,7 @@
 
       <div class="actions" style="margin-top:20px;">
         <button class="btn-secondary" id="goBack">← Edit details</button>
-        <button class="btn-primary" id="submitBtn">Send booking request</button>
+        <button class="btn-primary" id="submitBtn">Proceed to payment on WhatsApp →</button>
       </div>
     </div>
 
@@ -360,11 +343,12 @@
       <div class="conf">
         <div class="bg"></div>
         <div class="inner">
-          <div class="check">✓</div>
-          <div class="kicker">request received</div>
-          <h2>See you at the farm!</h2>
-          <p>We've noted your request for <strong style="color:#F4ECDD;" id="c-dates">—</strong>, <span id="c-guests">—</span>.</p>
-          <p>Estimated total <strong style="font-family:'Newsreader',serif; font-size:22px; color:#E9A867;" id="c-grand">—</strong> — we'll confirm availability &amp; payment shortly.</p>
+          <div class="check">💳</div>
+          <div class="kicker">check WhatsApp</div>
+          <h2>Proceed to payment</h2>
+          <p>We've sent a *payment QR* to your WhatsApp for <strong style="color:#F4ECDD;" id="c-dates">—</strong>, <span id="c-guests">—</span>.</p>
+          <p>Pay the advance of <strong style="font-family:'Newsreader',serif; font-size:22px; color:#E9A867;" id="c-grand">—</strong> on WhatsApp.</p>
+          <p style="margin-top:18px;">🕐 Once the farm owner verifies your payment, you'll receive your booking confirmation on WhatsApp.</p>
           <div class="ref" id="c-ref">—</div>
         </div>
       </div>
@@ -378,44 +362,13 @@ const GUEST_NAME = "{{ guest_name }}";
 const EMAIL = "{{ email }}";
 const PHONE = "{{ phone }}";
 
-const ROOMS = {
-  "Family Suite":   { cap: 4, rate: 6000, avail: 2 },
-  "Dormitory Stay": { cap: 6, rate: 4000, avail: 2 },
-};
-const MEAL_PRICES = {
-  "All Meals (BLD)": 950, "Breakfast+Dinner": 600, "Lunch+Dinner": 750,
-  "Breakfast Only": 200, "Dinner Only": 400, "No Meals": 0,
-};
-const PICKUP = { "Kudal Railway Station": 500, "Sawantwadi Railway Station": 600, "Chipi Airport": 700, "Mopa Airport": 800 };
-const VEHICLE_MULT = { "Sedan": 1.0, "MUV": 1.5, "Charter Bus": 3.0 };
-const ACTIVITIES_D1 = [
-  { id: "Animal Petting",            price: 0,   per: "group"  },
-  { id: "Bullock Cart Ride",         price: 100, per: "person" },
-  { id: "Pick Your Breakfast Plate", price: 300, per: "person" },
-  { id: "Trekking",                  price: 0,   per: "group"  },
-  { id: "Swimming Pool",             price: 0,   per: "group"  },
-  { id: "Gazebo Rain Dance",         price: 150, per: "person" },
-  { id: "Indoor Games",              price: 150, per: "person" },
-];
-const ACTIVITIES_D2 = [
-  { id: "Kayaking",                    price: 400, per: "boat"   },
-  { id: "Beach & Temple Visit",        price: 0,   per: "group"  },
-  { id: "Malvan Water Sports",         price: 0,   per: "group"  },
-  { id: "Vengurla Beach Exploration",  price: 0,   per: "group"  },
-];
-const NOTE = {
-  "Animal Petting": "Free · 1 hr",
-  "Bullock Cart Ride": "₹100 / guest · 15 min",
-  "Pick Your Breakfast Plate": "₹300 / guest · 30 min",
-  "Trekking": "Free · 2 hrs",
-  "Swimming Pool": "Free · all day",
-  "Gazebo Rain Dance": "₹150 / guest · 2 hrs",
-  "Indoor Games": "₹150 / guest · 3-4 hrs",
-  "Kayaking": "₹400 / boat · 1 hr",
-  "Beach & Temple Visit": "Free · transport extra",
-  "Malvan Water Sports": "Free · local fare",
-  "Vengurla Beach Exploration": "Free · transport extra",
-};
+const ROOMS = {{ rooms_json|safe }};
+const MEAL_PRICES = {{ meals_json|safe }};
+const PICKUP = {{ pickup_json|safe }};
+const VEHICLE_MULT = {{ vehicles_json|safe }};
+const ACTIVITIES_D1 = {{ activities_d1_json|safe }};
+const ACTIVITIES_D2 = {{ activities_d2_json|safe }};
+const NOTE = {{ notes_json|safe }};
 
 const S = {
   adults: 2, children: 0,
@@ -821,7 +774,7 @@ async function submit() {
     $("#confBox").classList.remove("hidden");
     $("#c-dates").textContent = `${new Date(S.checkIn).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} → ${new Date(S.checkOut).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
     $("#c-guests").textContent = `${persons()} guest${persons() > 1 ? 's' : ''}`;
-    $("#c-grand").textContent = fmt(t.total);
+    $("#c-grand").textContent = fmt(out.advance || Math.round(t.total * 0.5));
     $("#c-ref").textContent = out.booking_ref;
   } catch (err) {
     alert("Sorry, we couldn't save your booking: " + err.message);
@@ -830,8 +783,35 @@ async function submit() {
   }
 }
 
+function buildStaticSelects() {
+  // room segment buttons
+  const roomKeys = Object.keys(ROOMS);
+  if (roomKeys.length) {
+    if (!S.roomType || !ROOMS[S.roomType]) S.roomType = roomKeys[0];
+    const segHtml = roomKeys.map(name => {
+      const r = ROOMS[name];
+      return `<button data-room="${name}" class="${name === S.roomType ? 'active' : ''}">${name}<br><span style="font-weight:400; font-size:12px; opacity:.7;">sleeps ${r.cap} · ₹${r.rate.toLocaleString('en-IN')}</span></button>`;
+    }).join("");
+    $("#roomSeg").innerHTML = segHtml;
+  }
+
+  // setAllMeals dropdown
+  const mealOpts = Object.keys(MEAL_PRICES).map(k => `<option value="${k}">${k} — ₹${MEAL_PRICES[k]}</option>`).join("");
+  $("#setAllMeals").innerHTML = `<option value="">Choose a plan…</option>${mealOpts}`;
+
+  // pickup
+  const pickupOpts = Object.keys(PICKUP).map(k => `<option value="${k}">${k} — ₹${PICKUP[k]}</option>`).join("");
+  $("#pickup").innerHTML = `<option value="">Select a point…</option>${pickupOpts}`;
+
+  // vehicle
+  const vehOpts = Object.keys(VEHICLE_MULT).map(k => `<option value="${k}">${k} ×${VEHICLE_MULT[k]}</option>`).join("");
+  $("#vehicle").innerHTML = vehOpts;
+  S.vehicle = Object.keys(VEHICLE_MULT)[0] || "";
+}
+
 // init defaults
 (function init() {
+  buildStaticSelects();
   const today = new Date();
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
   const dayAfter = new Date(today); dayAfter.setDate(today.getDate() + 2);

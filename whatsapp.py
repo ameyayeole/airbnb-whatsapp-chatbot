@@ -21,6 +21,16 @@ def send_text(phone: str, message: str):
     })
 
 
+def send_image(phone: str, image_url: str, caption: str = ""):
+    """Send an image via a public URL (e.g. the admin-uploaded payment QR)."""
+    _post({
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "image",
+        "image": {"link": image_url, "caption": caption},
+    })
+
+
 def send_buttons(phone: str, body: str, buttons: list[dict]):
     """
     buttons: [{"id": "btn_id", "title": "Button Label"}, ...]

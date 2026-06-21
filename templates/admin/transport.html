@@ -1,0 +1,105 @@
+{% extends "admin/base.html" %}
+{% block title %}Transport · Mondys admin{% endblock %}
+{% block content %}
+<h1>Transport</h1>
+
+<div class="card">
+  <h2>Pickup point — add / edit</h2>
+  <form method="post" action="{{ url_for('admin.transport_save_pickup') }}">
+    <input type="hidden" name="id" id="p-id">
+    <div class="grid3">
+      <div class="field"><label>Name</label><input type="text" name="name" id="p-name" required placeholder="Kudal Railway Station"></div>
+      <div class="field"><label>Base fare (₹)</label><input type="number" name="base_fare" id="p-fare" required min="0"></div>
+      <div class="field"><label>Sort order</label><input type="number" name="sort_order" id="p-sort" value="0"></div>
+    </div>
+    <div class="field"><label><input type="checkbox" name="active" id="p-active" checked> Active</label></div>
+    <button class="btn primary" type="submit">Save pickup point</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Pickup points</h2>
+  {% if pickup_points %}
+  <table>
+    <thead><tr><th>Name</th><th>Base fare</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+      {% for p in pickup_points %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>₹{{ '{:,}'.format(p.base_fare) }}</td>
+        <td>{% if p.active %}✓{% else %}✗{% endif %}</td>
+        <td>
+          <button class="btn sm" onclick='fillPickup({{ p|tojson }})'>Edit</button>
+          <form class="inline" method="post" action="{{ url_for('admin.transport_delete_pickup', point_id=p.id) }}" onsubmit="return confirm('Delete?');">
+            <button class="btn sm danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No pickup points.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Vehicle — add / edit</h2>
+  <form method="post" action="{{ url_for('admin.transport_save_vehicle') }}">
+    <input type="hidden" name="id" id="v-id">
+    <div class="grid4">
+      <div class="field"><label>Key (slug)</label><input type="text" name="key" id="v-key" required placeholder="sedan"></div>
+      <div class="field"><label>Name</label><input type="text" name="name" id="v-name" required></div>
+      <div class="field"><label>Multiplier (×)</label><input type="number" step="0.1" name="multiplier" id="v-mult" required min="0.1"></div>
+      <div class="field"><label>Sort order</label><input type="number" name="sort_order" id="v-sort" value="0"></div>
+    </div>
+    <div class="field"><label>Description</label><input type="text" name="description" id="v-desc"></div>
+    <div class="field"><label><input type="checkbox" name="active" id="v-active" checked> Active</label></div>
+    <button class="btn primary" type="submit">Save vehicle</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Vehicles</h2>
+  {% if vehicles %}
+  <table>
+    <thead><tr><th>Name</th><th>Key</th><th>Multiplier</th><th>Description</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+      {% for v in vehicles %}
+      <tr>
+        <td>{{ v.name }}</td>
+        <td class="mono">{{ v.key }}</td>
+        <td>×{{ v.multiplier }}</td>
+        <td>{{ v.description }}</td>
+        <td>{% if v.active %}✓{% else %}✗{% endif %}</td>
+        <td>
+          <button class="btn sm" onclick='fillVehicle({{ v|tojson }})'>Edit</button>
+          <form class="inline" method="post" action="{{ url_for('admin.transport_delete_vehicle', vehicle_id=v.id) }}" onsubmit="return confirm('Delete?');">
+            <button class="btn sm danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No vehicles.</p>{% endif %}
+</div>
+
+<script>
+function fillPickup(p) {
+  document.getElementById('p-id').value = p.id;
+  document.getElementById('p-name').value = p.name;
+  document.getElementById('p-fare').value = p.base_fare;
+  document.getElementById('p-sort').value = p.sort_order || 0;
+  document.getElementById('p-active').checked = !!p.active;
+  window.scrollTo(0, 0);
+}
+function fillVehicle(v) {
+  document.getElementById('v-id').value = v.id;
+  document.getElementById('v-key').value = v.key;
+  document.getElementById('v-name').value = v.name;
+  document.getElementById('v-mult').value = v.multiplier;
+  document.getElementById('v-sort').value = v.sort_order || 0;
+  document.getElementById('v-desc').value = v.description || '';
+  document.getElementById('v-active').checked = !!v.active;
+}
+</script>
+{% endblock %}

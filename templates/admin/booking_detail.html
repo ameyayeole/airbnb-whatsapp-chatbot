@@ -1,0 +1,84 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ b.booking_ref }} · Booking{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin.bookings_list') }}" class="muted">← Back to bookings</a>
+<h1 style="margin-top:6px;">{{ b.booking_ref }}</h1>
+
+<div style="margin-bottom:18px;">
+  {% if b.status == 'pending_payment' %}<span class="pill pending">Pending payment</span>
+  {% elif b.status == 'confirmed' %}<span class="pill confirmed">Confirmed</span>
+  {% elif b.status == 'cancelled' %}<span class="pill cancelled">Cancelled</span>
+  {% else %}<span class="pill">{{ b.status }}</span>{% endif %}
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Guest</h2>
+    <p><strong>{{ b.guest_name }}</strong><br>
+    <span class="muted">+{{ b.phone }} · {{ b.email or '—' }}</span></p>
+  </div>
+  <div class="card">
+    <h2>Stay</h2>
+    <p>{{ b.check_in }} → {{ b.check_out }} · {{ b.nights }} night(s)<br>
+    Guests: {{ b.adults }} adult(s){% if b.children %} + {{ b.children }} child(ren){% endif %}<br>
+    Room: <strong>{{ b.room_type }} × {{ b.room_count }}</strong></p>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Meals &amp; food</h2>
+    <p>Preference: {{ b.food_preference or '—' }}<br>
+    Veg / Non-veg: {{ b.veg_count }} / {{ b.nv_count }}<br>
+    Meal plan D1: {{ b.meal_plan_d1 }}<br>
+    Meal plan D2+: {{ b.meal_plan_sub }}</p>
+  </div>
+  <div class="card">
+    <h2>Transport</h2>
+    <p>Arrival: {{ b.arrival_mode or '—' }}<br>
+    Pickup: {{ b.pickup_point or '—' }}<br>
+    Vehicle: {{ b.vehicle_type or '—' }}</p>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Activities</h2>
+    <p class="mono">Day 1: {{ b.activities_d1 or '—' }}<br>Day 2: {{ b.activities_d2 or '—' }}</p>
+  </div>
+  <div class="card">
+    <h2>Special requests</h2>
+    <p>{{ b.special_requests or '—' }}</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Totals</h2>
+  <p style="font-size:18px;">Total: <strong>₹{{ '{:,}'.format(b.total_amount or 0) }}</strong> · Advance ({{ b.advance_amount and (b.advance_amount*100//(b.total_amount or 1)) or 0 }}%): <strong>₹{{ '{:,}'.format(b.advance_amount or 0) }}</strong></p>
+  {% if b.acknowledged_at %}<p class="muted">Acknowledged on {{ b.acknowledged_at }}</p>{% endif %}
+</div>
+
+{% if b.status == 'pending_payment' %}
+<div class="card">
+  <h2>Actions</h2>
+  <p class="muted">Once you've verified the guest paid the advance (₹{{ '{:,}'.format(b.advance_amount or 0) }}), acknowledge below to send them the confirmation message on WhatsApp.</p>
+  <form method="post" action="{{ url_for('admin.booking_acknowledge', booking_id=b.id) }}" class="inline" onsubmit="return confirm('Mark this booking as paid &amp; confirmed? A WhatsApp confirmation will be sent to the guest.');">
+    <button type="submit" class="btn primary">✓ Mark paid &amp; confirm</button>
+  </form>
+  <form method="post" action="{{ url_for('admin.booking_cancel', booking_id=b.id) }}" class="inline" onsubmit="return confirm('Cancel this booking?');">
+    <button type="submit" class="btn danger">Cancel booking</button>
+  </form>
+</div>
+{% elif b.status == 'confirmed' %}
+<div class="card">
+  <h2>Actions</h2>
+  <form method="post" action="{{ url_for('admin.booking_send_feedback', booking_id=b.id) }}" class="inline" onsubmit="return confirm('Send a feedback request link to the guest on WhatsApp?');">
+    <button type="submit" class="btn primary">⭐ Send feedback request</button>
+  </form>
+  <form method="post" action="{{ url_for('admin.booking_cancel', booking_id=b.id) }}" class="inline" onsubmit="return confirm('Cancel this booking?');">
+    <button type="submit" class="btn danger">Cancel booking</button>
+  </form>
+  {% if b.feedback_sent_at %}<p class="muted" style="margin-top:14px;">Feedback link last sent: {{ b.feedback_sent_at }}</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

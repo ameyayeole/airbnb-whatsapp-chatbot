@@ -1,0 +1,59 @@
+{% extends "admin/base.html" %}
+{% block title %}Photos &amp; QR · Mondys admin{% endblock %}
+{% block content %}
+<h1>Photos &amp; payment QR</h1>
+
+<div class="card">
+  <h2>Payment QR (sent to guests on WhatsApp)</h2>
+  {% if qr_filename %}
+    <p><img src="{{ url_for('uploads', filename=qr_filename) }}" alt="Payment QR" style="max-width:260px; border:1px solid #e3d6bf; border-radius:8px;"></p>
+    <p class="muted mono">{{ qr_filename }}</p>
+  {% else %}
+    <p class="muted">No QR uploaded yet. Upload one below.</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('admin.payment_qr_upload') }}" enctype="multipart/form-data">
+    <div class="field"><label>Upload new QR (PNG/JPG)</label><input type="file" name="file" accept="image/*" required></div>
+    <button type="submit" class="btn primary">Upload QR</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Upload photo</h2>
+  <form method="post" action="{{ url_for('admin.photos_upload') }}" enctype="multipart/form-data">
+    <div class="grid3">
+      <div class="field">
+        <label>Slot</label>
+        <select name="slot" required>
+          <option value="hero">Homepage hero</option>
+          <option value="gallery">Gallery tile</option>
+          {% for r in rooms %}
+            <option value="room-{{ r.key }}">Room — {{ r.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field" style="grid-column:span 2;">
+        <label>Alt text (optional)</label><input type="text" name="alt_text" placeholder="Description for accessibility">
+      </div>
+    </div>
+    <div class="field"><label>Image file</label><input type="file" name="file" accept="image/*" required></div>
+    <button type="submit" class="btn primary">Upload photo</button>
+  </form>
+</div>
+
+{% for slot, items in by_slot.items() %}
+<div class="card">
+  <h2>Slot: <span class="mono">{{ slot }}</span></h2>
+  <div class="grid4">
+    {% for p in items %}
+      <div>
+        <img src="{{ url_for('uploads', filename=p.filename) }}" alt="{{ p.alt_text }}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:10px; border:1px solid #e3d6bf;">
+        <p class="muted mono" style="font-size:11px; margin:6px 0 4px;">{{ p.filename }}</p>
+        <form method="post" action="{{ url_for('admin.photos_delete', photo_id=p.id) }}" onsubmit="return confirm('Delete this photo?');">
+          <button type="submit" class="btn sm danger" style="width:100%;">Delete</button>
+        </form>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

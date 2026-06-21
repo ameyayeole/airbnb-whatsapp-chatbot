@@ -1,0 +1,85 @@
+{% extends "admin/base.html" %}
+{% block title %}Activities · Mondys admin{% endblock %}
+{% block content %}
+<h1>Activities</h1>
+
+<div class="card">
+  <h2>Add / edit activity</h2>
+  <form method="post" action="{{ url_for('admin.activities_save') }}">
+    <input type="hidden" name="id" id="a-id">
+    <div class="grid4">
+      <div class="field">
+        <label>Day</label>
+        <select name="day" id="a-day"><option value="d1">Day 1 · On-farm</option><option value="d2">Day 2 · Off-farm</option></select>
+      </div>
+      <div class="field"><label>Key (slug)</label><input type="text" name="key" id="a-key" required placeholder="bullock"></div>
+      <div class="field"><label>Name</label><input type="text" name="name" id="a-name" required></div>
+      <div class="field">
+        <label>Per</label>
+        <select name="per_unit" id="a-per">
+          <option value="group">Group (flat)</option>
+          <option value="person">Person (per guest)</option>
+          <option value="boat">Boat (per boat)</option>
+        </select>
+      </div>
+      <div class="field"><label>Price (₹)</label><input type="number" name="price" id="a-price" required min="0"></div>
+      <div class="field"><label>Duration</label><input type="text" name="duration" id="a-dur" placeholder="1 hour"></div>
+      <div class="field"><label>Note</label><input type="text" name="note" id="a-note" placeholder="Transport extra"></div>
+      <div class="field"><label>Sort order</label><input type="number" name="sort_order" id="a-sort" value="0"></div>
+    </div>
+    <div class="field">
+      <label><input type="checkbox" name="is_free" id="a-free"> Mark as free (shows "Free" label)</label>
+      &nbsp;&nbsp;<label><input type="checkbox" name="active" id="a-active" checked> Active</label>
+    </div>
+    <button type="submit" class="btn primary">Save</button>
+    <button type="button" class="btn" onclick="document.querySelector('form').reset(); document.getElementById('a-id').value='';">Clear</button>
+  </form>
+</div>
+
+{% for day, items, title in [('d1', d1, 'Day 1 — On the farm'), ('d2', d2, 'Day 2 — Off the farm')] %}
+<div class="card">
+  <h2>{{ title }}</h2>
+  {% if items %}
+  <table>
+    <thead><tr><th>Name</th><th>Key</th><th>Per</th><th>Price</th><th>Duration</th><th>Free</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+      {% for a in items %}
+      <tr>
+        <td>{{ a.name }}<br><span class="muted">{{ a.note }}</span></td>
+        <td class="mono">{{ a.key }}</td>
+        <td>{{ a.per_unit }}</td>
+        <td>₹{{ '{:,}'.format(a.price) }}</td>
+        <td>{{ a.duration }}</td>
+        <td>{% if a.is_free %}✓{% endif %}</td>
+        <td>{% if a.active %}✓{% else %}✗{% endif %}</td>
+        <td>
+          <button class="btn sm" onclick='fillForm({{ a|tojson }})'>Edit</button>
+          <form class="inline" method="post" action="{{ url_for('admin.activities_delete', activity_id=a.id) }}" onsubmit="return confirm('Delete this activity?');">
+            <button class="btn sm danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No activities yet for this day.</p>{% endif %}
+</div>
+{% endfor %}
+
+<script>
+function fillForm(a) {
+  document.getElementById('a-id').value = a.id;
+  document.getElementById('a-day').value = a.day;
+  document.getElementById('a-key').value = a.key;
+  document.getElementById('a-name').value = a.name;
+  document.getElementById('a-per').value = a.per_unit;
+  document.getElementById('a-price').value = a.price;
+  document.getElementById('a-dur').value = a.duration || '';
+  document.getElementById('a-note').value = a.note || '';
+  document.getElementById('a-sort').value = a.sort_order || 0;
+  document.getElementById('a-free').checked = !!a.is_free;
+  document.getElementById('a-active').checked = !!a.active;
+  window.scrollTo(0, 0);
+}
+</script>
+{% endblock %}

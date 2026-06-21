@@ -1,0 +1,70 @@
+{% extends "admin/base.html" %}
+{% block title %}Rooms · Mondys admin{% endblock %}
+{% block content %}
+<h1>Room types</h1>
+
+<div class="card">
+  <h2>Add / edit room</h2>
+  <form method="post" action="{{ url_for('admin.rooms_save') }}">
+    <input type="hidden" name="id" id="room-id">
+    <div class="grid3">
+      <div class="field"><label>Key (slug)</label><input type="text" name="key" id="room-key" required placeholder="family_suite"></div>
+      <div class="field"><label>Name</label><input type="text" name="name" id="room-name" required></div>
+      <div class="field"><label>Rate / night (₹)</label><input type="number" name="rate" id="room-rate" required min="0"></div>
+      <div class="field"><label>Capacity (pax)</label><input type="number" name="capacity" id="room-capacity" required min="1"></div>
+      <div class="field"><label>Inventory (rooms available)</label><input type="number" name="inventory" id="room-inventory" required min="0"></div>
+      <div class="field"><label>Sort order</label><input type="number" name="sort_order" id="room-sort" value="0"></div>
+    </div>
+    <div class="field"><label>Description</label><textarea name="description" id="room-desc"></textarea></div>
+    <div class="field"><label><input type="checkbox" name="active" id="room-active" checked> Active (shown on website)</label></div>
+    <button type="submit" class="btn primary">Save</button>
+    <button type="button" class="btn" onclick="resetForm()">Clear form</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>All rooms</h2>
+  {% if rooms %}
+  <table>
+    <thead><tr><th>Name</th><th>Key</th><th>Rate</th><th>Cap</th><th>Inv</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+      {% for r in rooms %}
+      <tr>
+        <td><strong>{{ r.name }}</strong><br><span class="muted">{{ r.description|truncate(60) }}</span></td>
+        <td class="mono">{{ r.key }}</td>
+        <td>₹{{ '{:,}'.format(r.rate) }}</td>
+        <td>{{ r.capacity }}</td>
+        <td>{{ r.inventory }}</td>
+        <td>{% if r.active %}✓{% else %}✗{% endif %}</td>
+        <td>
+          <button class="btn sm" onclick='fillForm({{ r|tojson }})'>Edit</button>
+          <form class="inline" method="post" action="{{ url_for('admin.rooms_delete', room_id=r.id) }}" onsubmit="return confirm('Delete this room type?');">
+            <button class="btn sm danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No rooms yet.</p>{% endif %}
+</div>
+
+<script>
+function fillForm(r) {
+  document.getElementById('room-id').value = r.id;
+  document.getElementById('room-key').value = r.key;
+  document.getElementById('room-name').value = r.name;
+  document.getElementById('room-rate').value = r.rate;
+  document.getElementById('room-capacity').value = r.capacity;
+  document.getElementById('room-inventory').value = r.inventory;
+  document.getElementById('room-sort').value = r.sort_order || 0;
+  document.getElementById('room-desc').value = r.description || '';
+  document.getElementById('room-active').checked = !!r.active;
+  window.scrollTo(0, 0);
+}
+function resetForm() {
+  document.querySelector('form').reset();
+  document.getElementById('room-id').value = '';
+}
+</script>
+{% endblock %}

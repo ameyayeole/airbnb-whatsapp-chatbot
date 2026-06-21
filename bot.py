@@ -16,6 +16,15 @@ import config
 
 _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
+
+def _s(key: str, fallback: str = "") -> str:
+    """Read a kv_settings value, falling back to a default if unset."""
+    try:
+        v = database.get_setting(key, "")
+        return v if v else fallback
+    except Exception:
+        return fallback
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # SESSION
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -293,7 +302,7 @@ def _back(phone: str):
 def _welcome(phone: str):
     whatsapp.send_text(
         phone,
-        f"🌾 *Welcome to {config.PROPERTY_NAME}!*\n\n"
+        f"🌾 *Welcome to {_s("property_name", config.PROPERTY_NAME)}!*\n\n"
         f"I'm *{config.BOT_NAME}* 🤖, your farm concierge.\n\n"
         "May I know your *name* to get started?",
     )
@@ -478,7 +487,7 @@ def _ask_special_requests(phone: str):
         f"({s['nights']} night{'s' if s['nights'] > 1 else ''}) ✅\n\n"
         "Check-in: *{ci}* | Check-out: *{co}*\n\n"
         "Do you have any *special requests*?\n"
-        "_(e.g. anniversary setup, early check-in, dietary needs — or type 'none')_".format(ci=config.CHECK_IN_TIME, co=config.CHECK_OUT_TIME),
+        "_(e.g. anniversary setup, early check-in, dietary needs — or type 'none')_".format(ci=_s("check_in_time", config.CHECK_IN_TIME), co=_s("check_out_time", config.CHECK_OUT_TIME)),
     )
     _state(phone, "ASK_SPECIAL_REQUESTS")
 
@@ -1046,7 +1055,7 @@ def _show_policy(phone: str):
     whatsapp.send_buttons(
         phone,
         f"📜 *Booking Policy — Please Read*\n\n"
-        f"{config.CANCELLATION_POLICY}\n\n"
+        f"{_s("cancellation_policy", config.CANCELLATION_POLICY)}\n\n"
         f"{config.PAYMENT_INFO}\n\n"
         "Tap *Got It* to see your full booking summary.",
         [
@@ -1100,12 +1109,12 @@ def _show_summary(phone: str):
     co = date.fromisoformat(s["check_out"])
 
     summary = (
-        f"📋 *Booking Summary — {config.PROPERTY_NAME}*\n\n"
+        f"📋 *Booking Summary — {_s("property_name", config.PROPERTY_NAME)}*\n\n"
         f"*Name:*    {s['guest_name']}\n"
         f"*Guests:*  {s['adults']} adult(s), {s['children']} child(ren)\n"
         f"*Email:*   {s.get('email') or 'Not provided'}\n\n"
-        f"*Check-in:*  {ci.strftime('%d %b %Y')}  {config.CHECK_IN_TIME}\n"
-        f"*Check-out:* {co.strftime('%d %b %Y')}  {config.CHECK_OUT_TIME}\n"
+        f"*Check-in:*  {ci.strftime('%d %b %Y')}  {_s("check_in_time", config.CHECK_IN_TIME)}\n"
+        f"*Check-out:* {co.strftime('%d %b %Y')}  {_s("check_out_time", config.CHECK_OUT_TIME)}\n"
         f"*Nights:*    {s['nights']}\n\n"
         f"*Room:*     {s.get('room_count',1)}× {s['room_type']}\n"
         f"*Food:*     {s['food_preference']} "
@@ -1200,12 +1209,12 @@ def _confirm_booking(phone: str, content: str):
     whatsapp.send_text(
         phone,
         f"📍 *Farm Details*\n\n"
-        f"*Address:* {config.PROPERTY_ADDRESS}\n"
-        f"*GPS:* {config.PROPERTY_GPS}\n\n"
-        f"*Check-in:*  {config.CHECK_IN_TIME}\n"
-        f"*Check-out:* {config.CHECK_OUT_TIME}\n\n"
-        f"*Contact:* {config.PROPERTY_CONTACT}\n"
-        f"*Email:* {config.SUPPORT_EMAIL}\n\n"
+        f"*Address:* {_s("property_address", config.PROPERTY_ADDRESS)}\n"
+        f"*GPS:* {_s("property_gps", config.PROPERTY_GPS)}\n\n"
+        f"*Check-in:*  {_s("check_in_time", config.CHECK_IN_TIME)}\n"
+        f"*Check-out:* {_s("check_out_time", config.CHECK_OUT_TIME)}\n\n"
+        f"*Contact:* {_s("property_contact", config.PROPERTY_CONTACT)}\n"
+        f"*Email:* {_s("support_email", config.SUPPORT_EMAIL)}\n\n"
         "_Please carry a valid Govt. Photo ID._",
     )
 
@@ -1213,16 +1222,16 @@ def _confirm_booking(phone: str, content: str):
     whatsapp.send_text(
         phone,
         f"🏥 *Medical & Emergency*\n\n"
-        f"Nearest Hospital: {config.NEAREST_HOSPITAL}\n"
-        f"Contact: {config.MEDICAL_CONTACT}\n"
-        f"Ambulance: {config.AMBULANCE}\n"
-        f"{config.PHARMACY_INFO}",
+        f"Nearest Hospital: {_s("nearest_hospital", config.NEAREST_HOSPITAL)}\n"
+        f"Contact: {_s("medical_contact", config.MEDICAL_CONTACT)}\n"
+        f"Ambulance: {_s("ambulance", config.AMBULANCE)}\n"
+        f"{_s("pharmacy_info", config.PHARMACY_INFO)}",
     )
 
     # 5. Farewell
     whatsapp.send_text(
         phone,
-        f"🌾 *Thank you for choosing {config.PROPERTY_NAME}!*\n\n"
+        f"🌾 *Thank you for choosing {_s("property_name", config.PROPERTY_NAME)}!*\n\n"
         f"Your booking reference is *{ref}*. "
         "Our team will reach out to confirm your advance payment.\n\n"
         f"See you soon! 🙏\n\n"
@@ -1236,8 +1245,8 @@ def _send_contact_info(phone: str):
     whatsapp.send_text(
         phone,
         f"📞 *Talk to Our Team*\n\n"
-        f"*Phone / WhatsApp:* {config.PROPERTY_CONTACT}\n"
-        f"*Email:* {config.SUPPORT_EMAIL}\n\n"
+        f"*Phone / WhatsApp:* {_s("property_contact", config.PROPERTY_CONTACT)}\n"
+        f"*Email:* {_s("support_email", config.SUPPORT_EMAIL)}\n\n"
         "Available: 8 AM – 8 PM daily 🌾\n\n"
         "Type *Hi* to restart the chatbot anytime.",
     )
@@ -1252,7 +1261,7 @@ def _show_info_menu(phone: str):
     whatsapp.send_list(
         phone,
         f"Great, *{s.get('guest_name','there')}*! 🌿\n\n"
-        f"What would you like to know about *{config.PROPERTY_NAME}*?",
+        f"What would you like to know about *{_s("property_name", config.PROPERTY_NAME)}*?",
         "Browse Topics",
         [
             {
@@ -1327,12 +1336,12 @@ def _info_rooms(phone: str):
     lines = "\n".join(f"  {k}: {v}" for k, v in config.FACILITIES.items())
     whatsapp.send_text(
         phone,
-        f"🏠 *Rooms & Facilities — {config.PROPERTY_NAME}*\n\n"
+        f"🏠 *Rooms & Facilities — {_s("property_name", config.PROPERTY_NAME)}*\n\n"
         f"*Room Types:*\n"
         f"  🏡 Family Suite — up to 4 guests | Rs.{pricing.ROOM_RATES['Family Suite']:,}/night\n"
         f"  🛏️ Dormitory Stay — up to 6 guests | Rs.{pricing.ROOM_RATES['Dormitory Stay']:,}/night\n\n"
         f"*Facilities:*\n{lines}\n\n"
-        f"*Check-in:* {config.CHECK_IN_TIME}  |  *Check-out:* {config.CHECK_OUT_TIME}\n\n"
+        f"*Check-in:* {_s("check_in_time", config.CHECK_IN_TIME)}  |  *Check-out:* {_s("check_out_time", config.CHECK_OUT_TIME)}\n\n"
         f"{_more_details_line()}",
     )
     _info_back(phone)
@@ -1341,7 +1350,7 @@ def _info_rooms(phone: str):
 def _info_food(phone: str):
     whatsapp.send_text(
         phone,
-        f"🍽️ *Food & Dining — {config.PROPERTY_NAME}*\n\n"
+        f"🍽️ *Food & Dining — {_s("property_name", config.PROPERTY_NAME)}*\n\n"
         "Fresh home-cooked meals, both Veg & Non-Veg.\n\n"
         "*Meal Prices (per person):*\n"
         f"  Breakfast: Rs.{pricing.MEAL_PRICES['Breakfast']:,}\n"
@@ -1357,7 +1366,7 @@ def _info_food(phone: str):
 def _info_pricing(phone: str):
     whatsapp.send_text(
         phone,
-        f"💰 *Pricing & Tariff — {config.PROPERTY_NAME}*\n\n"
+        f"💰 *Pricing & Tariff — {_s("property_name", config.PROPERTY_NAME)}*\n\n"
         f"*Rooms (per night):*\n"
         f"  Family Suite:   Rs.{pricing.ROOM_RATES['Family Suite']:,} (up to 4 pax)\n"
         f"  Dormitory Stay: Rs.{pricing.ROOM_RATES['Dormitory Stay']:,} (up to 6 pax)\n\n"
@@ -1386,7 +1395,7 @@ def _info_activities(phone: str):
     )
     whatsapp.send_text(
         phone,
-        f"🎯 *Activities — {config.PROPERTY_NAME}*\n\n"
+        f"🎯 *Activities — {_s("property_name", config.PROPERTY_NAME)}*\n\n"
         f"*Day 1 (On-Farm):*\n{d1}\n\n"
         f"*Day 2 (Off-Farm / Outdoor):*\n{d2}\n\n"
         f"{_more_details_line()}",
@@ -1398,16 +1407,16 @@ def _info_transport(phone: str):
     pts = "\n".join(f"  {k}: Rs.{v:,} base" for k, v in pricing.PICKUP_POINTS.items())
     whatsapp.send_text(
         phone,
-        f"🚗 *Transport & Location — {config.PROPERTY_NAME}*\n\n"
-        f"*Address:* {config.PROPERTY_ADDRESS}\n"
-        f"*GPS:* {config.PROPERTY_GPS}\n\n"
+        f"🚗 *Transport & Location — {_s("property_name", config.PROPERTY_NAME)}*\n\n"
+        f"*Address:* {_s("property_address", config.PROPERTY_ADDRESS)}\n"
+        f"*GPS:* {_s("property_gps", config.PROPERTY_GPS)}\n\n"
         f"*Pickup Points (base rate):*\n{pts}\n\n"
         f"*Vehicle Options:*\n"
         f"  Sedan (4-seat) · MUV (6-7 seat) · Charter Bus (20+ pax)\n\n"
         f"*Contacts:*\n"
-        f"  Driver: {config.TRANSPORT_CONTACT}\n"
-        f"  Guide:  {config.TOUR_GUIDE_CONTACT}\n"
-        f"  Sports: {config.SPORTS_GUIDE_CONTACT}\n\n"
+        f"  Driver: {_s("transport_contact", config.TRANSPORT_CONTACT)}\n"
+        f"  Guide:  {_s("tour_guide_contact", config.TOUR_GUIDE_CONTACT)}\n"
+        f"  Sports: {_s("sports_guide_contact", config.SPORTS_GUIDE_CONTACT)}\n\n"
         f"{_more_details_line()}",
     )
     _info_back(phone)
@@ -1416,10 +1425,10 @@ def _info_transport(phone: str):
 def _info_photos(phone: str):
     whatsapp.send_text(
         phone,
-        f"📸 *Farm Photos — {config.PROPERTY_NAME}*\n\n"
+        f"📸 *Farm Photos — {_s("property_name", config.PROPERTY_NAME)}*\n\n"
         "Or contact us directly for photos:\n"
-        f"📞 {config.PROPERTY_CONTACT}\n"
-        f"📧 {config.SUPPORT_EMAIL}\n\n"
+        f"📞 {_s("property_contact", config.PROPERTY_CONTACT)}\n"
+        f"📧 {_s("support_email", config.SUPPORT_EMAIL)}\n\n"
         "We'll send photos of rooms, farm, dining, pool & surrounding nature! 🌿\n\n"
         f"{_more_details_line()}",
     )
@@ -1429,11 +1438,11 @@ def _info_photos(phone: str):
 def _info_medical(phone: str):
     whatsapp.send_text(
         phone,
-        f"🏥 *Medical & Safety — {config.PROPERTY_NAME}*\n\n"
-        f"Nearest Hospital: {config.NEAREST_HOSPITAL}\n"
-        f"Hospital Contact: {config.MEDICAL_CONTACT}\n"
-        f"Ambulance (free): {config.AMBULANCE}\n"
-        f"{config.PHARMACY_INFO}\n\n"
+        f"🏥 *Medical & Safety — {_s("property_name", config.PROPERTY_NAME)}*\n\n"
+        f"Nearest Hospital: {_s("nearest_hospital", config.NEAREST_HOSPITAL)}\n"
+        f"Hospital Contact: {_s("medical_contact", config.MEDICAL_CONTACT)}\n"
+        f"Ambulance (free): {_s("ambulance", config.AMBULANCE)}\n"
+        f"{_s("pharmacy_info", config.PHARMACY_INFO)}\n\n"
         "First-aid kit available at the farm.\n"
         "Caretaker on-site 24/7.\n\n"
         f"{_more_details_line()}",

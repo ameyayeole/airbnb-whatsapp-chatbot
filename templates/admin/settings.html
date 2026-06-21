@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}
+{% block title %}Settings · Mondys admin{% endblock %}
+{% block content %}
+<h1>Property settings</h1>
+<p class="muted">These values are used across the website, WhatsApp bot replies, and booking confirmations.</p>
+
+<form method="post" action="{{ url_for('admin.settings_save') }}">
+  <div class="card">
+    <div class="grid2">
+      {% for key, label, typ in fields %}
+        <div class="field" {% if typ == 'textarea' %}style="grid-column:1 / -1;"{% endif %}>
+          <label>{{ label }}</label>
+          {% if typ == 'textarea' %}
+            <textarea name="{{ key }}">{{ values.get(key, '') }}</textarea>
+          {% else %}
+            <input type="{{ typ }}" name="{{ key }}" value="{{ values.get(key, '') }}">
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn primary">Save settings</button>
+  </div>
+</form>
+{% endblock %}

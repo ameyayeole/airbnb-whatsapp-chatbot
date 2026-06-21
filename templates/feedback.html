@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How was your stay? · Mondys</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Caveat:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #F4ECDD; font-family: 'Hanken Grotesk', sans-serif; color: #2C2013; min-height: 100vh; }
+  ::selection { background: #B65C36; color: #F4ECDD; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 48px 24px 80px; }
+  .kicker { font-family: 'Caveat', cursive; font-size: 26px; color: #B65C36; }
+  h1 { font-family: 'Newsreader', serif; font-weight: 500; font-size: 46px; margin: 4px 0 14px; letter-spacing: -.01em; }
+  p.intro { font-size: 16px; color: #5a4f3f; line-height: 1.6; margin: 0 0 32px; }
+  .card { background: #fffaf0; border: 1px solid #e8dcc4; border-radius: 18px; padding: 28px 30px; margin-bottom: 18px; }
+  h2 { font-family: 'Newsreader', serif; font-weight: 500; font-size: 22px; margin: 0 0 16px; }
+  .stars { display: flex; gap: 12px; }
+  .star {
+    width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;
+    font-size: 38px; line-height: 1;
+    color: #cdb793; cursor: pointer; user-select: none;
+    transition: transform .12s ease, color .12s ease;
+  }
+  .star:hover { transform: scale(1.1); }
+  .star.on { color: #E9A867; }
+  .ratingLabel { margin-top: 12px; font-size: 14px; color: #8a7c66; min-height: 20px; }
+  textarea {
+    width: 100%; min-height: 120px; resize: vertical;
+    padding: 14px 16px; border: 1.5px solid #cdb793; border-radius: 12px;
+    font-family: inherit; font-size: 15px; color: #2C2013; background: #fff; line-height: 1.5;
+  }
+  textarea:focus { outline: none; border-color: #B65C36; }
+  .upload {
+    border: 2px dashed #cdb793; border-radius: 14px; padding: 24px;
+    background: #f7efdd; text-align: center; cursor: pointer;
+  }
+  .upload input { display: none; }
+  .upload .help { color: #8a7c66; font-size: 13px; margin-top: 6px; }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 14px; }
+  .thumbs .t { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #efe3ce; }
+  .thumbs .t img, .thumbs .t video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumbs .t .v-tag {
+    position: absolute; top: 6px; left: 6px;
+    background: rgba(44,32,19,.85); color: #F4ECDD;
+    font-size: 10px; padding: 2px 8px; border-radius: 999px;
+    letter-spacing: .05em; text-transform: uppercase;
+  }
+  .submit {
+    width: 100%; cursor: pointer; border: none; background: #B65C36; color: #F4ECDD;
+    padding: 16px 28px; border-radius: 999px; font-weight: 700; font-size: 16px;
+    font-family: inherit; margin-top: 8px;
+  }
+  .submit:disabled { background: #d9c4a8; color: #9a8a6f; cursor: not-allowed; }
+  .err { background: #fbe3d9; border: 1px solid #e3a78c; color: #9E4E2E;
+         padding: 12px 16px; border-radius: 10px; font-size: 14px; margin-top: 14px; }
+
+  .thanks .check { width: 64px; height: 64px; border-radius: 50%; background: #6E7544;
+    display: flex; align-items: center; justify-content: center; font-size: 30px; color: #F4ECDD;
+    margin: 0 auto 20px; }
+  .thanks { text-align: center; padding: 56px 32px; }
+  .thanks h2 { font-family: 'Newsreader', serif; font-size: 36px; }
+  .thanks p { color: #5a4f3f; font-size: 16px; line-height: 1.6; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap" id="formWrap">
+  <div class="kicker">how was your stay?</div>
+  <h1>Tell us about it, {{ guest_name }} 🌾</h1>
+  <p class="intro">A minute of your time helps us get better — and gives future guests a real picture of {{ booking_ref and (booking_ref ~ ' · ') }}{{ guest_name }}'s farm experience.</p>
+
+  {% if already_used %}
+    <div class="card thanks">
+      <div class="check">✓</div>
+      <h2>You've already shared feedback</h2>
+      <p>Thank you — we've got it noted!</p>
+    </div>
+  {% else %}
+
+  <div class="card">
+    <h2>Your rating</h2>
+    <div class="stars" id="stars">
+      {% for n in [1,2,3,4,5] %}
+        <span class="star" data-rating="{{ n }}">★</span>
+      {% endfor %}
+    </div>
+    <div class="ratingLabel" id="ratingLabel">Tap a star to rate</div>
+  </div>
+
+  <div class="card">
+    <h2>Anything you'd like to add?</h2>
+    <textarea id="comment" placeholder="What did you love? Anything we could do better? Stories from the farm?"></textarea>
+  </div>
+
+  <div class="card" id="uploadCard" style="display:none;">
+    <h2>Share a photo or video</h2>
+    <p style="font-size:14px; color:#8a7c66; margin:0 0 14px;">Optional — but we'd love to feature your shots on our website. (Images: PNG/JPG. Videos: MP4/MOV.)</p>
+    <label class="upload">
+      <input type="file" id="fileInput" accept="image/*,video/mp4,video/quicktime,video/webm" multiple>
+      <div style="font-family:'Caveat',cursive; font-size:22px; color:#5a4f3f;">📷 Drop or tap to add photos / videos</div>
+      <div class="help">Multiple files OK</div>
+    </label>
+    <div class="thumbs" id="thumbs"></div>
+  </div>
+
+  <button class="submit" id="submitBtn" disabled>Send feedback</button>
+  <div class="err hidden" id="errBox"></div>
+
+  {% endif %}
+</div>
+
+<div class="wrap hidden" id="thanksWrap">
+  <div class="card thanks">
+    <div class="check">✓</div>
+    <h2>Thank you!</h2>
+    <p>Your feedback means a lot.<br>If you shared photos or videos, we'll review and may feature them on our website.</p>
+  </div>
+</div>
+
+<script>
+const TOKEN = "{{ token }}";
+const state = { rating: 0, uploadedMedia: [], feedbackId: null };
+const RATING_LABELS = { 1: "Not great 😕", 2: "Just OK 😐", 3: "Good 🙂", 4: "Great 😊", 5: "Loved it 🌟" };
+const $ = (s) => document.querySelector(s);
+
+document.querySelectorAll(".star").forEach(s => {
+  s.addEventListener("click", () => {
+    state.rating = +s.dataset.rating;
+    paintStars();
+    $("#ratingLabel").textContent = RATING_LABELS[state.rating] || "";
+    $("#submitBtn").disabled = !state.rating;
+  });
+});
+function paintStars() {
+  document.querySelectorAll(".star").forEach(s => {
+    s.classList.toggle("on", +s.dataset.rating <= state.rating);
+  });
+}
+
+$("#submitBtn") && $("#submitBtn").addEventListener("click", async () => {
+  $("#submitBtn").disabled = true;
+  $("#submitBtn").textContent = "Sending…";
+  $("#errBox").classList.add("hidden");
+  try {
+    const res = await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: TOKEN, rating: state.rating, comment: $("#comment").value }),
+    });
+    const out = await res.json();
+    if (!res.ok || !out.ok) throw new Error(out.error || "Failed");
+    state.feedbackId = out.feedback_id;
+    // After feedback is saved, show the media upload card if there are queued files OR allow them to add now.
+    $("#uploadCard").style.display = "block";
+    $("#submitBtn").textContent = "Done ✓";
+
+    // Upload any files the user added BEFORE submit
+    if (state.queuedFiles && state.queuedFiles.length) {
+      for (const f of state.queuedFiles) await uploadOne(f);
+    }
+    setTimeout(() => {
+      $("#formWrap").classList.add("hidden");
+      $("#thanksWrap").classList.remove("hidden");
+      window.scrollTo(0, 0);
+    }, 1500);
+  } catch (e) {
+    $("#errBox").textContent = "Couldn't save your feedback: " + e.message;
+    $("#errBox").classList.remove("hidden");
+    $("#submitBtn").disabled = false;
+    $("#submitBtn").textContent = "Send feedback";
+  }
+});
+
+// File handling — queue files before submit; upload after feedback is saved.
+state.queuedFiles = [];
+const fi = $("#fileInput");
+const thumbs = $("#thumbs");
+if (fi) {
+  // Show the upload card right away so users can attach BEFORE clicking submit
+  $("#uploadCard").style.display = "block";
+  fi.addEventListener("change", () => {
+    for (const f of fi.files) {
+      state.queuedFiles.push(f);
+      const t = document.createElement("div");
+      t.className = "t";
+      if (f.type.startsWith("video/")) {
+        t.innerHTML = `<video src="${URL.createObjectURL(f)}" muted></video><span class="v-tag">video</span>`;
+      } else {
+        t.innerHTML = `<img src="${URL.createObjectURL(f)}">`;
+      }
+      thumbs.appendChild(t);
+    }
+    fi.value = ""; // allow re-selecting same file
+  });
+}
+
+async function uploadOne(file) {
+  if (!state.feedbackId) return;
+  const fd = new FormData();
+  fd.append("file", file);
+  try {
+    await fetch(`/api/feedback/${state.feedbackId}/media`, { method: "POST", body: fd });
+  } catch (e) {
+    console.warn("upload failed", e);
+  }
+}
+</script>
+</body>
+</html>

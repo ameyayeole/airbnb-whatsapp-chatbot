@@ -1,0 +1,50 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard · Mondys admin{% endblock %}
+{% block content %}
+<div class="kicker" style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">today at the farm</div>
+<h1>Dashboard</h1>
+
+<div class="grid3">
+  <div class="card stat">
+    <div class="kicker">awaiting payment</div>
+    <div class="num" style="color:#B65C36;">{{ pending|length }}</div>
+    <a href="{{ url_for('admin.bookings_list', status='pending_payment') }}">View pending →</a>
+  </div>
+  <div class="card stat">
+    <div class="kicker">confirmed (recent)</div>
+    <div class="num" style="color:#3f6b2d;">{{ confirmed|length }}</div>
+    <a href="{{ url_for('admin.bookings_list', status='confirmed') }}">View confirmed →</a>
+  </div>
+  <div class="card stat">
+    <div class="kicker">all bookings</div>
+    <div class="num">{{ all_count }}</div>
+    <a href="{{ url_for('admin.bookings_list') }}">View all →</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Awaiting payment &amp; acknowledgement</h2>
+  {% if pending %}
+  <table>
+    <thead><tr>
+      <th>Ref</th><th>Guest</th><th>Dates</th><th>Room</th><th>Total</th><th>Advance</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for b in pending %}
+      <tr>
+        <td class="mono">{{ b.booking_ref }}</td>
+        <td><strong>{{ b.guest_name }}</strong><br><span class="muted">+{{ b.phone }}</span></td>
+        <td>{{ b.check_in }} → {{ b.check_out }}<br><span class="muted">{{ b.nights }} night(s)</span></td>
+        <td>{{ b.room_type }} × {{ b.room_count }}</td>
+        <td>₹{{ '{:,}'.format(b.total_amount or 0) }}</td>
+        <td><strong>₹{{ '{:,}'.format(b.advance_amount or 0) }}</strong></td>
+        <td><a class="btn sm primary" href="{{ url_for('admin.booking_detail', booking_id=b.id) }}">Open</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No bookings awaiting payment 🎉</p>
+  {% endif %}
+</div>
+{% endblock %}
