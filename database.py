@@ -5,18 +5,27 @@ import os
 import re
 import json
 import socket
+import threading
 from datetime import date as _date
 import psycopg2
 import psycopg2.extras
+from psycopg2 import pool as _pg_pool
 from dotenv import load_dotenv
 
 load_dotenv()
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
+# Pool size per gunicorn worker. Supabase free tier allows ~60 direct
+# connections total, so keep this small; the pooler URL allows more.
+_POOL_MIN = int(os.getenv("DB_POOL_MIN", "1"))
+_POOL_MAX = int(os.getenv("DB_POOL_MAX", "5"))
 
-def _connect():
+
+def _raw_connect():
     """
+    Open a fresh psycopg2 connection.
+
     Try the DATABASE_URL as-is first (works when the server has IPv4 or
     a pooler URL is configured).  If libpq can't resolve the hostname
     (Supabase free-tier direct connections are IPv6-only), fall back to
@@ -54,6 +63,65 @@ def _connect():
             raise ipv6_err
         except Exception:
             raise first_err
+
+
+class _IPv6AwarePool(_pg_pool.ThreadedConnectionPool):
+    """ThreadedConnectionPool that routes new connections through _raw_connect()."""
+
+    def _connect(self, key=None):
+        conn = _raw_connect()
+        if key is not None:
+            self._used[key] = conn
+            self._rused[id(conn)] = key
+        else:
+            self._pool.append(conn)
+        return conn
+
+
+_pool: _pg_pool.ThreadedConnectionPool | None = None
+_pool_pid: int | None = None
+_pool_lock = threading.Lock()
+
+
+def _get_pool() -> _pg_pool.ThreadedConnectionPool:
+    """Lazy pool init, re-created per process so gunicorn fork doesn't share sockets."""
+    global _pool, _pool_pid
+    pid = os.getpid()
+    if _pool is None or _pool_pid != pid:
+        with _pool_lock:
+            if _pool is None or _pool_pid != pid:
+                _pool = _IPv6AwarePool(minconn=_POOL_MIN, maxconn=_POOL_MAX)
+                _pool_pid = pid
+    return _pool
+
+
+def _connect():
+    """Check out a pooled connection. Always pair with _release(conn) in a finally block."""
+    return _get_pool().getconn()
+
+
+def _release(conn):
+    """Return a connection to the pool. Safe to call with None or on a broken conn."""
+    if conn is None:
+        return
+    pool = _get_pool()
+    try:
+        if not conn.closed:
+            # Discard any in-flight transaction so the next checkout starts clean.
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            pool.putconn(conn)
+        else:
+            pool.putconn(conn, close=True)
+    except Exception:
+        # Pool refused the connection (e.g. pool already closed) — kill the socket directly.
+        try:
+            if not conn.closed:
+                conn.close()
+        except Exception:
+            pass
 
 
 def init_db():
@@ -245,7 +313,7 @@ def init_db():
         conn.commit()
         _seed_defaults_if_empty()
     finally:
-        conn.close()
+        _release(conn)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -380,7 +448,7 @@ def _seed_defaults_if_empty() -> None:
 
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -395,7 +463,7 @@ def get_setting(key: str, default: str = "") -> str:
             row = cur.fetchone()
             return row[0] if row and row[0] is not None else default
     finally:
-        conn.close()
+        _release(conn)
 
 
 def get_all_settings() -> dict:
@@ -405,7 +473,7 @@ def get_all_settings() -> dict:
             cur.execute("SELECT key, value FROM kv_settings")
             return {k: (v or "") for k, v in cur.fetchall()}
     finally:
-        conn.close()
+        _release(conn)
 
 
 def set_setting(key: str, value: str) -> None:
@@ -418,7 +486,7 @@ def set_setting(key: str, value: str) -> None:
             """, (key, value))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def list_rooms(active_only: bool = True) -> list:
@@ -432,7 +500,7 @@ def list_rooms(active_only: bool = True) -> list:
             cur.execute(q)
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        _release(conn)
 
 
 def get_room_by_name(name: str) -> "dict | None":
@@ -443,7 +511,7 @@ def get_room_by_name(name: str) -> "dict | None":
             row = cur.fetchone()
             return dict(row) if row else None
     finally:
-        conn.close()
+        _release(conn)
 
 
 def upsert_room(key: str, name: str, rate: int, capacity: int, inventory: int,
@@ -465,7 +533,7 @@ def upsert_room(key: str, name: str, rate: int, capacity: int, inventory: int,
                 """, (key, name, rate, capacity, inventory, description, sort_order, active))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def delete_room(room_id: int) -> None:
@@ -475,7 +543,7 @@ def delete_room(room_id: int) -> None:
             cur.execute("DELETE FROM room_types WHERE id = %s", (room_id,))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def list_meal_plans(active_only: bool = True) -> list:
@@ -489,7 +557,7 @@ def list_meal_plans(active_only: bool = True) -> list:
             cur.execute(q)
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        _release(conn)
 
 
 def upsert_meal_plan(key: str, name: str, price: int, sort_order: int = 0,
@@ -505,7 +573,7 @@ def upsert_meal_plan(key: str, name: str, price: int, sort_order: int = 0,
                             (key, name, price, sort_order, active))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def delete_meal_plan(plan_id: int) -> None:
@@ -515,7 +583,7 @@ def delete_meal_plan(plan_id: int) -> None:
             cur.execute("DELETE FROM meal_plans WHERE id = %s", (plan_id,))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def list_activities(day: "str | None" = None, active_only: bool = True) -> list:
@@ -533,7 +601,7 @@ def list_activities(day: "str | None" = None, active_only: bool = True) -> list:
             cur.execute(q, params)
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        _release(conn)
 
 
 def upsert_activity(day: str, key: str, name: str, price: int, per_unit: str,
@@ -556,7 +624,7 @@ def upsert_activity(day: str, key: str, name: str, price: int, per_unit: str,
                 """, (day, key, name, price, per_unit, duration, note, is_free, sort_order, active))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def delete_activity(activity_id: int) -> None:
@@ -566,7 +634,7 @@ def delete_activity(activity_id: int) -> None:
             cur.execute("DELETE FROM activities WHERE id = %s", (activity_id,))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def list_pickup_points(active_only: bool = True) -> list:
@@ -580,7 +648,7 @@ def list_pickup_points(active_only: bool = True) -> list:
             cur.execute(q)
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        _release(conn)
 
 
 def upsert_pickup_point(name: str, base_fare: int, sort_order: int = 0,
@@ -596,7 +664,7 @@ def upsert_pickup_point(name: str, base_fare: int, sort_order: int = 0,
                             (name, base_fare, sort_order, active))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def delete_pickup_point(point_id: int) -> None:
@@ -606,7 +674,7 @@ def delete_pickup_point(point_id: int) -> None:
             cur.execute("DELETE FROM pickup_points WHERE id = %s", (point_id,))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def list_vehicle_types(active_only: bool = True) -> list:
@@ -620,7 +688,7 @@ def list_vehicle_types(active_only: bool = True) -> list:
             cur.execute(q)
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        _release(conn)
 
 
 def upsert_vehicle(key: str, name: str, multiplier: float, description: str = "",
@@ -641,7 +709,7 @@ def upsert_vehicle(key: str, name: str, multiplier: float, description: str = ""
                 """, (key, name, multiplier, description, sort_order, active))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def delete_vehicle(vehicle_id: int) -> None:
@@ -651,7 +719,7 @@ def delete_vehicle(vehicle_id: int) -> None:
             cur.execute("DELETE FROM vehicle_types WHERE id = %s", (vehicle_id,))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def list_photos(slot: "str | None" = None) -> list:
@@ -664,7 +732,7 @@ def list_photos(slot: "str | None" = None) -> list:
                 cur.execute("SELECT * FROM photos ORDER BY slot, sort_order, id")
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        _release(conn)
 
 
 def add_photo(slot: str, filename: str, alt_text: str = "", sort_order: int = 0) -> int:
@@ -678,7 +746,7 @@ def add_photo(slot: str, filename: str, alt_text: str = "", sort_order: int = 0)
             return cur.fetchone()[0]
     finally:
         conn.commit()
-        conn.close()
+        _release(conn)
 
 
 def delete_photo(photo_id: int) -> "str | None":
@@ -690,7 +758,7 @@ def delete_photo(photo_id: int) -> "str | None":
         conn.commit()
         return row[0] if row else None
     finally:
-        conn.close()
+        _release(conn)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -707,7 +775,7 @@ def list_bookings(status: "str | None" = None, limit: int = 200) -> list:
                 cur.execute("SELECT * FROM bookings ORDER BY created_at DESC LIMIT %s", (limit,))
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        _release(conn)
 
 
 def get_booking(booking_id: int) -> "dict | None":
@@ -718,7 +786,7 @@ def get_booking(booking_id: int) -> "dict | None":
             row = cur.fetchone()
             return dict(row) if row else None
     finally:
-        conn.close()
+        _release(conn)
 
 
 def mark_booking_feedback_sent(booking_id: int) -> None:
@@ -731,7 +799,7 @@ def mark_booking_feedback_sent(booking_id: int) -> None:
             )
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def list_bookings_due_for_feedback(days_after_checkout: int = 1) -> list:
@@ -748,7 +816,7 @@ def list_bookings_due_for_feedback(days_after_checkout: int = 1) -> list:
             """, (days_after_checkout,))
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        _release(conn)
 
 
 # ── feedback tokens / submissions ─────────────────────────────────────────────
@@ -764,7 +832,7 @@ def create_feedback_token(token: str, booking_id: int) -> None:
             )
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def get_feedback_token(token: str) -> "dict | None":
@@ -775,7 +843,7 @@ def get_feedback_token(token: str) -> "dict | None":
             row = cur.fetchone()
             return dict(row) if row else None
     finally:
-        conn.close()
+        _release(conn)
 
 
 def mark_feedback_token_used(token: str) -> None:
@@ -788,7 +856,7 @@ def mark_feedback_token_used(token: str) -> None:
             )
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def create_feedback(booking_id: int, booking_ref: str, guest_name: str,
@@ -803,7 +871,7 @@ def create_feedback(booking_id: int, booking_ref: str, guest_name: str,
             return cur.fetchone()[0]
     finally:
         conn.commit()
-        conn.close()
+        _release(conn)
 
 
 def add_feedback_media(feedback_id: int, filename: str, kind: str = "image") -> int:
@@ -817,7 +885,7 @@ def add_feedback_media(feedback_id: int, filename: str, kind: str = "image") -> 
             return cur.fetchone()[0]
     finally:
         conn.commit()
-        conn.close()
+        _release(conn)
 
 
 def list_feedback(status: "str | None" = None, limit: int = 200) -> list:
@@ -840,7 +908,7 @@ def list_feedback(status: "str | None" = None, limit: int = 200) -> list:
                 r["media"] = media_by_fb.get(r["id"], [])
             return rows
     finally:
-        conn.close()
+        _release(conn)
 
 
 def list_approved_feedback(limit: int = 6) -> list:
@@ -859,7 +927,7 @@ def list_approved_feedback_media(limit: int = 20) -> list:
             """, (limit,))
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        _release(conn)
 
 
 def update_feedback_status(feedback_id: int, status: str) -> None:
@@ -875,7 +943,7 @@ def update_feedback_status(feedback_id: int, status: str) -> None:
                 cur.execute("UPDATE feedback SET status=%s WHERE id=%s", (status, feedback_id))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def toggle_feedback_media_approval(media_id: int) -> bool:
@@ -887,7 +955,7 @@ def toggle_feedback_media_approval(media_id: int) -> bool:
         conn.commit()
         return bool(row[0]) if row else False
     finally:
-        conn.close()
+        _release(conn)
 
 
 def delete_feedback_media(media_id: int) -> "str | None":
@@ -899,7 +967,7 @@ def delete_feedback_media(media_id: int) -> "str | None":
         conn.commit()
         return row[0] if row else None
     finally:
-        conn.close()
+        _release(conn)
 
 
 def update_booking_status(booking_id: int, status: str, mark_acknowledged: bool = False) -> None:
@@ -915,7 +983,7 @@ def update_booking_status(booking_id: int, status: str, mark_acknowledged: bool 
                 cur.execute("UPDATE bookings SET status=%s WHERE id=%s", (status, booking_id))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def create_booking_token(token: str, phone: str, guest_name: str, email: str) -> None:
@@ -936,7 +1004,7 @@ def create_booking_token(token: str, phone: str, guest_name: str, email: str) ->
             )
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def get_booking_token(token: str) -> "dict | None":
@@ -947,7 +1015,7 @@ def get_booking_token(token: str) -> "dict | None":
             row = cur.fetchone()
             return dict(row) if row else None
     finally:
-        conn.close()
+        _release(conn)
 
 
 def mark_token_used(token: str) -> None:
@@ -957,7 +1025,7 @@ def mark_token_used(token: str) -> None:
             cur.execute("UPDATE booking_tokens SET used = TRUE WHERE token = %s", (token,))
         conn.commit()
     finally:
-        conn.close()
+        _release(conn)
 
 
 def check_availability(check_in: str, check_out: str, room_type: str, rooms_requested: int = 1) -> bool:
@@ -978,7 +1046,7 @@ def check_availability(check_in: str, check_out: str, room_type: str, rooms_requ
             already_booked = cur.fetchone()[0]
             return (already_booked + rooms_requested) <= total_inventory
     finally:
-        conn.close()
+        _release(conn)
 
 
 def create_booking(
@@ -1040,7 +1108,7 @@ def create_booking(
         conn.commit()
         return booking_id, ref
     finally:
-        conn.close()
+        _release(conn)
 
 
 def get_bookings_by_phone(phone: str) -> list:
@@ -1053,4 +1121,4 @@ def get_bookings_by_phone(phone: str) -> list:
             )
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        _release(conn)
