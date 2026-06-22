@@ -210,6 +210,7 @@ def api_book():
         # ── Notify all OWNERS on WhatsApp ───────────────────────────────────
         try:
             _notify_owners(
+                booking_id=booking_id,
                 booking_ref=booking_ref,
                 guest_name=rec["guest_name"],
                 phone=rec["phone"],
@@ -267,7 +268,7 @@ def _send_payment_message(*, phone, guest_name, booking_ref, check_in, check_out
         )
 
 
-def _notify_owners(*, booking_ref, guest_name, phone, email, check_in, check_out, nights,
+def _notify_owners(*, booking_id, booking_ref, guest_name, phone, email, check_in, check_out, nights,
                    adults, children, room_type, room_count, total_amount, advance_amount,
                    special_requests):
     """Send a 'new booking' alert to every owner WhatsApp number in settings."""
@@ -277,7 +278,7 @@ def _notify_owners(*, booking_ref, guest_name, phone, email, check_in, check_out
     if not numbers:
         return
 
-    admin_url = f"{config.BASE_URL.rstrip('/')}/admin/bookings"
+    admin_url = f"{config.BASE_URL.rstrip('/')}/admin/bookings/{booking_id}"
     msg = (
         f"🛎️ *New booking — {booking_ref}*\n\n"
         f"Guest: {guest_name}\n"
