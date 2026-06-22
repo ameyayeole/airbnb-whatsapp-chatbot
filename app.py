@@ -257,11 +257,13 @@ def _send_payment_message(*, phone, guest_name, booking_ref, check_in, check_out
         "you'll receive your full booking confirmation here.*"
     )
 
-    if qr_filename:
+    qr_path = os.path.join(config.UPLOAD_FOLDER, qr_filename) if qr_filename else ""
+    if qr_filename and os.path.exists(qr_path):
         image_url = f"{config.BASE_URL.rstrip('/')}/uploads/{qr_filename}"
         whatsapp.send_image(phone, image_url, caption=caption)
     else:
-        # No QR uploaded yet — send text-only
+        if qr_filename:
+            print(f"[QR] settings has payment_qr_filename={qr_filename!r} but file is missing on disk at {qr_path}. Re-upload from /admin/photos.")
         whatsapp.send_text(
             phone,
             caption + "\n\n_(Payment QR not yet configured — please contact the farm.)_",

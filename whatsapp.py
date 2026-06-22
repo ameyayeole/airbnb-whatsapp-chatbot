@@ -9,7 +9,11 @@ _HEADERS = {
 
 
 def _post(payload: dict):
-    requests.post(_BASE, json=payload, headers=_HEADERS, timeout=10)
+    r = requests.post(_BASE, json=payload, headers=_HEADERS, timeout=10)
+    if r.status_code >= 400:
+        print(f"[WA] send failed {r.status_code}: {r.text} | payload={payload}")
+        r.raise_for_status()
+    return r.json()
 
 
 def send_text(phone: str, message: str):
