@@ -1086,9 +1086,9 @@ def create_booking(
                      meal_plan_d1, meal_plan_sub,
                      arrival_mode, pickup_point, vehicle_type,
                      activities_d1, activities_d2,
-                     total_amount, advance_amount)
+                     total_amount, advance_amount, status)
                 VALUES
-                    (%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s, %s,%s,%s, %s,%s, %s,%s,%s, %s,%s, %s,%s)
+                    (%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s, %s,%s,%s, %s,%s, %s,%s,%s, %s,%s, %s,%s,%s)
                 RETURNING id
             """, (
                 phone, guest_name, email, adults, children,
@@ -1097,7 +1097,7 @@ def create_booking(
                 meal_plan_d1, meal_plan_sub,
                 arrival_mode, pickup_point, vehicle_type,
                 json.dumps(activities_d1), json.dumps(activities_d2),
-                total_amount, advance_amount,
+                total_amount, advance_amount, 'pending_payment',
             ))
             booking_id = cur.fetchone()[0]
 
