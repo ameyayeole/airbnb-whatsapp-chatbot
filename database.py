@@ -1011,7 +1011,7 @@ def list_approved_feedback_media(limit: int = 20) -> list:
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("""
-                SELECT m.*, f.guest_name FROM feedback_media m
+                SELECT m.*, f.guest_name, f.comment, f.rating FROM feedback_media m
                   JOIN feedback f ON f.id = m.feedback_id
                 WHERE m.approved = TRUE AND f.status = 'approved'
                 ORDER BY m.id DESC LIMIT %s

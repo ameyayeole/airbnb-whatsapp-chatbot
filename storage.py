@@ -19,6 +19,12 @@ import config
 
 
 def _api_base() -> str:
+    if not config.SUPABASE_URL or not config.SUPABASE_SERVICE_ROLE_KEY:
+        raise RuntimeError(
+            "Supabase Storage is not configured. Set SUPABASE_URL and "
+            "SUPABASE_SERVICE_ROLE_KEY in the environment (.env locally, "
+            "or the Render service's Environment tab)."
+        )
     return f"{config.SUPABASE_URL.rstrip('/')}/storage/v1"
 
 
