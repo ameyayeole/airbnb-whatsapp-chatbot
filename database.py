@@ -1,5 +1,5 @@
 """
-database.py — Supabase / PostgreSQL backend for Mondkar Farm Stay
+database.py — Supabase / PostgreSQL backend for Mondys Organic Farm
 """
 import os
 import re
@@ -310,6 +310,20 @@ def init_db():
             """)
             cur.execute("ALTER TABLE bookings ADD COLUMN IF NOT EXISTS feedback_sent_at TIMESTAMP")
 
+            # ── testimonials (admin-curated, separate from guest feedback) ──
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS testimonials (
+                    id          SERIAL PRIMARY KEY,
+                    author      TEXT NOT NULL,
+                    role        TEXT,
+                    quote       TEXT NOT NULL,
+                    photo       TEXT,
+                    sort_order  INTEGER DEFAULT 0,
+                    active      BOOLEAN DEFAULT TRUE,
+                    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
         conn.commit()
         _seed_defaults_if_empty()
     finally:
@@ -321,8 +335,8 @@ def init_db():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 _DEFAULT_KV = {
-    "property_name":       "Mondkar Farm Stay",
-    "property_address":    "Mondys Farm Stay, Sindhudurg, Maharashtra",
+    "property_name":       "Mondys Organic Farm",
+    "property_address":    "Mondys Organic Farm, Sindhudurg, Maharashtra",
     "property_gps":        "https://maps.google.com/?q=16.0,73.7",
     "property_contact":    "+91-XXXXXXXXXX",
     "support_email":       "stay@mondys.in",
@@ -392,6 +406,24 @@ _DEFAULT_VEHICLES = [
     {"key": "charter", "name": "Charter Bus", "multiplier": 3.0, "description": "Large group (20+ pax)", "sort_order": 3},
 ]
 
+_DEFAULT_TESTIMONIALS = [
+    {"author": "Anita & Rohan Deshmukh", "role": "Mumbai · stayed November 2025",
+     "quote": "We came for a weekend and stayed an extra night. The kids fed the goats every morning, and the breakfast plate we picked ourselves was the best part of our year.",
+     "sort_order": 1},
+    {"author": "The Kapoor family", "role": "Pune · stayed October 2025",
+     "quote": "Three generations under one roof and not a single phone in sight by day two. The bullock cart ride had my father grinning like a child. We're already planning the next trip.",
+     "sort_order": 2},
+    {"author": "Sneha Iyer", "role": "Bangalore · stayed September 2025",
+     "quote": "Quiet, green, and exactly what a tired city brain needed. The kayaking on the creek at sunrise is something I'll remember for a long time.",
+     "sort_order": 3},
+    {"author": "Vikram & Meera", "role": "Delhi · stayed August 2025",
+     "quote": "Genuinely warm hosts, food that tastes like it came from someone's grandmother's kitchen, and stars at night you forget exist. Worth every kilometre of the drive down.",
+     "sort_order": 4},
+    {"author": "The Fernandes group", "role": "Goa · stayed July 2025",
+     "quote": "Booked the dorm for a friends' weekend and ended up doing nothing we'd planned — just kayaks, card games on the verandah, and very long dinners. Perfect.",
+     "sort_order": 5},
+]
+
 
 def _seed_defaults_if_empty() -> None:
     """Populate config tables on first run. Idempotent — does nothing if table has rows."""
@@ -445,6 +477,14 @@ def _seed_defaults_if_empty() -> None:
                         VALUES (%(key)s, %(name)s, %(multiplier)s, %(description)s, %(sort_order)s)
                         ON CONFLICT (key) DO NOTHING
                     """, v)
+
+            cur.execute("SELECT COUNT(*) FROM testimonials")
+            if cur.fetchone()[0] == 0:
+                for t in _DEFAULT_TESTIMONIALS:
+                    cur.execute("""
+                        INSERT INTO testimonials (author, role, quote, sort_order)
+                        VALUES (%(author)s, %(role)s, %(quote)s, %(sort_order)s)
+                    """, t)
 
         conn.commit()
     finally:
@@ -581,6 +621,57 @@ def delete_meal_plan(plan_id: int) -> None:
     try:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM meal_plans WHERE id = %s", (plan_id,))
+        conn.commit()
+    finally:
+        _release(conn)
+
+
+def list_testimonials(active_only: bool = True) -> list:
+    conn = _connect()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            q = "SELECT * FROM testimonials"
+            if active_only:
+                q += " WHERE active = TRUE"
+            q += " ORDER BY sort_order, id"
+            cur.execute(q)
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        _release(conn)
+
+
+def upsert_testimonial(author: str, quote: str, role: "str | None" = None,
+                       photo: "str | None" = None, sort_order: int = 0,
+                       active: bool = True, testimonial_id: "int | None" = None) -> None:
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            if testimonial_id:
+                if photo is None:
+                    cur.execute(
+                        "UPDATE testimonials SET author=%s, role=%s, quote=%s, sort_order=%s, active=%s WHERE id=%s",
+                        (author, role, quote, sort_order, active, testimonial_id),
+                    )
+                else:
+                    cur.execute(
+                        "UPDATE testimonials SET author=%s, role=%s, quote=%s, photo=%s, sort_order=%s, active=%s WHERE id=%s",
+                        (author, role, quote, photo, sort_order, active, testimonial_id),
+                    )
+            else:
+                cur.execute(
+                    "INSERT INTO testimonials (author, role, quote, photo, sort_order, active) VALUES (%s,%s,%s,%s,%s,%s)",
+                    (author, role, quote, photo, sort_order, active),
+                )
+        conn.commit()
+    finally:
+        _release(conn)
+
+
+def delete_testimonial(testimonial_id: int) -> None:
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM testimonials WHERE id = %s", (testimonial_id,))
         conn.commit()
     finally:
         _release(conn)

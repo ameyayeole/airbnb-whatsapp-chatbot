@@ -6,7 +6,7 @@
 <div class="card">
   <h2>Payment QR (sent to guests on WhatsApp)</h2>
   {% if qr_filename %}
-    <p><img src="{{ url_for('uploads', filename=qr_filename) }}" alt="Payment QR" style="max-width:260px; border:1px solid #e3d6bf; border-radius:8px;"></p>
+    <p><img src="{{ media_url(qr_filename) }}" alt="Payment QR" style="max-width:260px; border:1px solid #e3d6bf; border-radius:8px;"></p>
     <p class="muted mono">{{ qr_filename }}</p>
   {% else %}
     <p class="muted">No QR uploaded yet. Upload one below.</p>
@@ -46,7 +46,7 @@
   <div class="grid4">
     {% for p in items %}
       <div>
-        <img src="{{ url_for('uploads', filename=p.filename) }}" alt="{{ p.alt_text }}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:10px; border:1px solid #e3d6bf;">
+        <img src="{{ media_url(p.filename) }}" alt="{{ p.alt_text }}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:10px; border:1px solid #e3d6bf;">
         <p class="muted mono" style="font-size:11px; margin:6px 0 4px;">{{ p.filename }}</p>
         <form method="post" action="{{ url_for('admin.photos_delete', photo_id=p.id) }}" onsubmit="return confirm('Delete this photo?');">
           <button type="submit" class="btn sm danger" style="width:100%;">Delete</button>

@@ -5,7 +5,6 @@ Single-password auth (ADMIN_PASSWORD env var). Sessions kept in Flask's signed
 cookie. All routes under /admin/* require login except /admin/login.
 """
 import hmac
-import os
 import re
 import time
 from functools import wraps
@@ -18,6 +17,7 @@ from flask import (
 
 import config
 import database
+import storage
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -256,6 +256,50 @@ def meals_delete(plan_id):
     return redirect(url_for("admin.meals_list"))
 
 
+# ─── testimonials ────────────────────────────────────────────────────────────
+
+@admin_bp.get("/testimonials")
+@login_required
+def testimonials_list():
+    return render_template(
+        "admin/testimonials.html",
+        testimonials=database.list_testimonials(active_only=False),
+    )
+
+
+@admin_bp.post("/testimonials")
+@login_required
+def testimonials_save():
+    tid = request.form.get("id") or None
+    file = request.files.get("photo")
+    photo_filename = None
+    if file and file.filename:
+        try:
+            photo_filename = _save_upload(file, prefix="testi_")
+        except ValueError as e:
+            flash(str(e), "err")
+            return redirect(url_for("admin.testimonials_list"))
+    database.upsert_testimonial(
+        testimonial_id=int(tid) if tid else None,
+        author=request.form["author"].strip(),
+        role=(request.form.get("role") or "").strip() or None,
+        quote=request.form["quote"].strip(),
+        photo=photo_filename,
+        sort_order=int(request.form.get("sort_order") or 0),
+        active=bool(request.form.get("active")),
+    )
+    flash("Testimonial saved.", "ok")
+    return redirect(url_for("admin.testimonials_list"))
+
+
+@admin_bp.post("/testimonials/<int:testimonial_id>/delete")
+@login_required
+def testimonials_delete(testimonial_id):
+    database.delete_testimonial(testimonial_id)
+    flash("Testimonial deleted.", "ok")
+    return redirect(url_for("admin.testimonials_list"))
+
+
 # ─── activities ──────────────────────────────────────────────────────────────
 
 @admin_bp.get("/activities")
@@ -367,14 +411,15 @@ def _allowed(filename: str) -> bool:
 
 
 def _save_upload(file_storage, prefix: str = "") -> str:
-    os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
     base = secure_filename(file_storage.filename or "upload.png")
     if not _allowed(base):
         raise ValueError("File type not allowed. Use PNG/JPG/JPEG/GIF/WEBP.")
     ts = int(time.time())
     fname = re.sub(r"[^a-zA-Z0-9._-]", "_", f"{prefix}{ts}_{base}")
-    path = os.path.join(config.UPLOAD_FOLDER, fname)
-    file_storage.save(path)
+    try:
+        storage.upload(fname, file_storage)
+    except Exception as e:
+        raise ValueError(f"Upload failed: {e}") from e
     return fname
 
 
@@ -423,10 +468,7 @@ def photos_upload():
 def photos_delete(photo_id):
     fname = database.delete_photo(photo_id)
     if fname:
-        try:
-            os.remove(os.path.join(config.UPLOAD_FOLDER, fname))
-        except OSError:
-            pass
+        storage.delete(fname)
     flash("Photo deleted.", "ok")
     return redirect(url_for("admin.photos_page"))
 
@@ -470,10 +512,7 @@ def feedback_media_toggle(media_id):
 def feedback_media_delete(media_id):
     fname = database.delete_feedback_media(media_id)
     if fname:
-        try:
-            os.remove(os.path.join(config.UPLOAD_FOLDER, fname))
-        except OSError:
-            pass
+        storage.delete(fname)
     flash("Media deleted.", "ok")
     return redirect(url_for("admin.feedback_list"))
 

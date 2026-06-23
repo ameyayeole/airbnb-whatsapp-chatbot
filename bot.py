@@ -1,5 +1,5 @@
 """
-bot.py — Mondkar Farm Stay WhatsApp Chatbot
+bot.py — Mondys Organic Farm WhatsApp Chatbot
 Character: Mondy 🤖
 
 Flow A — Explore the Farm  (info / FAQ)

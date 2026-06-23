@@ -22,6 +22,10 @@
   .img-ph.rounded { border-radius: 16px; }
   .img-fill { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+  .guest-tile { position: relative; border-radius: 16px; overflow: hidden; }
+  .guest-tile.featured { grid-column: span 2; grid-row: span 2; }
+  @media (max-width: 900px) { .guest-tile.featured { grid-column: span 1; grid-row: span 1; } }
+
   .tab-btn { cursor: pointer; padding: 12px 26px; border-radius: 999px;
     font-family: 'Hanken Grotesk', sans-serif; font-weight: 600; font-size: 16px;
     border: 1.5px solid #cdb793; background: transparent; color: #5a4f3f; transition: all .2s ease; }
@@ -66,7 +70,7 @@
   <header id="top" style="display:grid; grid-template-columns:1.08fr 0.92fr; gap:0; max-width:1320px; margin:0 auto; align-items:stretch;">
     <div style="padding:84px 56px 72px;">
       <div style="font-family:'Caveat',cursive; font-size:28px; color:#6E7544; margin-bottom:10px;">an organic farm stay in Kudal</div>
-      <h1 style="font-family:'Newsreader',serif; font-weight:500; font-size:66px; line-height:1.02; margin:0 0 24px; letter-spacing:-0.02em;">Wake to birdsong, eat what you <em style="font-style:italic; color:#B65C36;">picked yourself.</em></h1>
+      <h1 style="font-family:'Newsreader',serif; font-weight:500; font-size:66px; line-height:1.02; margin:0 0 24px; letter-spacing:-0.02em;">Wakeup to birdsong, eat what you <em style="font-style:italic; color:#B65C36;">picked yourself.</em></h1>
       <p style="font-size:18px; line-height:1.65; color:#5a4f3f; max-width:460px; margin:0 0 34px;">A two-acre family farm in the Konkan green belt. Petting barns, bullock-cart rides, kayaks on the creek, and a breakfast plate you harvest at dawn — close to Malvan's beaches and the Sahyadri foothills.</p>
       <div style="display:flex; gap:14px; align-items:center; margin-bottom:44px; flex-wrap:wrap;">
         <a href="{{ wa_link }}" style="text-decoration:none; background:#B65C36; color:#F4ECDD; padding:16px 30px; border-radius:999px; font-weight:600; font-size:16px;">Book a Stay</a>
@@ -80,7 +84,7 @@
     </div>
     <div style="position:relative; min-height:600px;">
       {% if hero_photo %}
-        <img class="img-fill" style="position:absolute; inset:0;" src="{{ url_for('uploads', filename=hero_photo.filename) }}" alt="{{ hero_photo.alt_text }}">
+        <img class="img-fill" style="position:absolute; inset:0;" src="{{ media_url(hero_photo.filename) }}" alt="{{ hero_photo.alt_text }}">
       {% else %}
         <div class="img-ph" style="position:absolute; inset:0; width:100%; height:100%;">Upload a hero photo in admin → Photos</div>
       {% endif %}
@@ -116,7 +120,7 @@
       <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; overflow:hidden;">
         <div style="position:relative; height:280px;">
           {% if rp %}
-            <img class="img-fill" style="position:absolute; inset:0;" src="{{ url_for('uploads', filename=rp.filename) }}" alt="{{ rp.alt_text or r.name }}">
+            <img class="img-fill" style="position:absolute; inset:0;" src="{{ media_url(rp.filename) }}" alt="{{ rp.alt_text or r.name }}">
           {% else %}
             <div class="img-ph" style="position:absolute; inset:0;">Photo of {{ r.name }}</div>
           {% endif %}
@@ -230,38 +234,108 @@
 
     <div style="display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:200px; gap:14px;">
       {% for g in gallery_photos %}
-        <img src="{{ url_for('uploads', filename=g.filename) }}" alt="{{ g.alt_text }}" style="width:100%; height:100%; object-fit:cover; border-radius:16px;">
+        <img src="{{ media_url(g.filename) }}" alt="{{ g.alt_text }}" style="width:100%; height:100%; object-fit:cover; border-radius:16px;">
       {% endfor %}
-      {% for m in guest_media %}
-        {% if m.kind == 'video' %}
-          <video src="{{ url_for('uploads', filename=m.filename) }}" muted loop autoplay playsinline style="width:100%; height:100%; object-fit:cover; border-radius:16px;"></video>
-        {% else %}
-          <img src="{{ url_for('uploads', filename=m.filename) }}" alt="From guest {{ m.guest_name }}" style="width:100%; height:100%; object-fit:cover; border-radius:16px;">
-        {% endif %}
-      {% endfor %}
-      {% if not gallery_photos and not guest_media %}
-        {% for i in range(10) %}
+      {% if not gallery_photos %}
+        {% for i in range(8) %}
           <div class="img-ph rounded">Upload photos in admin → Photos</div>
         {% endfor %}
       {% endif %}
     </div>
   </section>
 
-  {% if reviews %}
-  <!-- REVIEWS -->
-  <section id="reviews" style="max-width:1200px; margin:0 auto; padding:60px 48px;">
-    <div style="text-align:center; margin-bottom:40px;">
-      <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">words from the farm</div>
-      <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Guest reviews</h2>
-    </div>
-    <div style="display:grid; grid-template-columns:repeat({{ 3 if reviews|length >= 3 else reviews|length }},1fr); gap:20px;">
-      {% for r in reviews %}
-      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; padding:28px;">
-        <div style="color:#D49B3E; font-size:16px; letter-spacing:2px; margin-bottom:14px;">{{ '★' * r.rating }}<span style="color:#cdb793;">{{ '★' * (5 - r.rating) }}</span></div>
-        {% if r.comment %}<p style="font-family:'Newsreader',serif; font-size:19px; line-height:1.5; color:#2C2013; margin:0 0 20px;">"{{ r.comment }}"</p>{% endif %}
-        <div style="font-weight:600; font-size:15px;">{{ r.guest_name or 'Guest' }}</div>
-        {% if r.approved_at %}<div style="font-size:13px; color:#8a7c66;">{{ r.approved_at.strftime('%b %Y') }}</div>{% endif %}
+  {% if testimonials %}
+  <!-- TESTIMONIALS CAROUSEL -->
+  <section id="testimonials" style="background:#fffaf0; padding:88px 48px; border-top:1px solid #e8dcc4; border-bottom:1px solid #e8dcc4;">
+    <div style="max-width:980px; margin:0 auto;">
+      <div style="text-align:center; margin-bottom:40px;">
+        <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">what guests are saying</div>
+        <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Testimonials</h2>
       </div>
+
+      <div id="testi-carousel" style="position:relative;">
+        <div id="testi-track" style="overflow:hidden; border-radius:20px;">
+          <div id="testi-slides" style="display:flex; transition:transform .55s cubic-bezier(.6,.05,.2,1);">
+            {% for t in testimonials %}
+            <div class="testi-slide" style="min-width:100%; padding:48px 56px; background:#fffaf0; box-sizing:border-box;">
+              <div style="font-family:'Newsreader',serif; font-size:34px; color:#B65C36; line-height:1; margin-bottom:14px;">&ldquo;</div>
+              <p style="font-family:'Newsreader',serif; font-style:italic; font-size:24px; line-height:1.5; color:#2C2013; margin:0 0 30px; min-height:120px;">{{ t.quote }}</p>
+              <div style="display:flex; align-items:center; gap:14px;">
+                {% if t.photo %}
+                  <img src="{{ media_url(t.photo) }}" alt="{{ t.author }}" style="width:54px; height:54px; object-fit:cover; border-radius:50%; border:2px solid #e8dcc4;">
+                {% else %}
+                  <div style="width:54px; height:54px; border-radius:50%; background:#6E7544; color:#F4ECDD; display:flex; align-items:center; justify-content:center; font-family:'Newsreader',serif; font-size:22px;">{{ t.author[:1] }}</div>
+                {% endif %}
+                <div>
+                  <div style="font-weight:600; font-size:16px; color:#2C2013;">{{ t.author }}</div>
+                  {% if t.role %}<div style="font-size:13px; color:#8a7c66;">{{ t.role }}</div>{% endif %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {% if testimonials|length > 1 %}
+        <button type="button" id="testi-prev" aria-label="Previous testimonial"
+          style="position:absolute; top:50%; left:-20px; transform:translateY(-50%); width:44px; height:44px; border-radius:50%; border:1.5px solid #cdb793; background:#fffaf0; color:#2C2013; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;">‹</button>
+        <button type="button" id="testi-next" aria-label="Next testimonial"
+          style="position:absolute; top:50%; right:-20px; transform:translateY(-50%); width:44px; height:44px; border-radius:50%; border:1.5px solid #cdb793; background:#fffaf0; color:#2C2013; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;">›</button>
+
+        <div id="testi-dots" style="display:flex; justify-content:center; gap:8px; margin-top:24px;">
+          {% for t in testimonials %}
+            <button type="button" class="testi-dot" data-i="{{ loop.index0 }}" aria-label="Go to testimonial {{ loop.index }}"
+              style="width:9px; height:9px; border-radius:50%; border:none; padding:0; background:#cdb793; cursor:pointer;"></button>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+  <script>
+  (function() {
+    var slides = document.getElementById('testi-slides');
+    if (!slides) return;
+    var count = slides.children.length;
+    if (count <= 1) return;
+    var i = 0;
+    var dots = document.querySelectorAll('.testi-dot');
+    function go(n) {
+      i = (n + count) % count;
+      slides.style.transform = 'translateX(' + (-i * 100) + '%)';
+      dots.forEach(function(d, idx) { d.style.background = idx === i ? '#B65C36' : '#cdb793'; });
+    }
+    document.getElementById('testi-prev').addEventListener('click', function() { go(i - 1); reset(); });
+    document.getElementById('testi-next').addEventListener('click', function() { go(i + 1); reset(); });
+    dots.forEach(function(d) { d.addEventListener('click', function() { go(parseInt(d.dataset.i, 10)); reset(); }); });
+    var timer = setInterval(function() { go(i + 1); }, 6000);
+    function reset() { clearInterval(timer); timer = setInterval(function() { go(i + 1); }, 6000); }
+    go(0);
+  })();
+  </script>
+  {% endif %}
+
+  {% if guest_media %}
+  <!-- PEOPLE HAD FUN — photos from real guests -->
+  <section id="guests" style="max-width:1320px; margin:0 auto; padding:88px 48px 40px;">
+    <div style="text-align:center; margin-bottom:40px;">
+      <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">moments from real stays</div>
+      <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">People had fun.</h2>
+      <p style="color:#5a4f3f; font-size:15px; max-width:520px; margin:16px auto 0; line-height:1.6;">Snapshots our guests shared after their stay — barn mornings, kayak afternoons, dinners on the verandah.</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:240px; gap:14px;">
+      {% for m in guest_media %}
+        <div class="guest-tile{% if loop.index0 % 7 == 0 %} featured{% endif %}">
+          {% if m.kind == 'video' %}
+            <video src="{{ media_url(m.filename) }}" muted loop autoplay playsinline style="width:100%; height:100%; object-fit:cover; display:block;"></video>
+          {% else %}
+            <img src="{{ media_url(m.filename) }}" alt="Shared by {{ m.guest_name or 'a guest' }}" style="width:100%; height:100%; object-fit:cover; display:block;">
+          {% endif %}
+          {% if m.guest_name %}
+          <div style="position:absolute; left:0; right:0; bottom:0; padding:14px 16px; background:linear-gradient(to top, rgba(44,32,19,.78), rgba(44,32,19,0)); color:#F4ECDD; font-family:'Caveat',cursive; font-size:20px;">— {{ m.guest_name }}</div>
+          {% endif %}
+        </div>
       {% endfor %}
     </div>
   </section>

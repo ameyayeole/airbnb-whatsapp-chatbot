@@ -237,6 +237,7 @@
     <a href="{{ url_for('admin.meals_list') }}"       class="{% if request.endpoint=='admin.meals_list' %}active{% endif %}">Meals</a>
     <a href="{{ url_for('admin.activities_list') }}"  class="{% if request.endpoint=='admin.activities_list' %}active{% endif %}">Activities</a>
     <a href="{{ url_for('admin.transport_list') }}"   class="{% if request.endpoint=='admin.transport_list' %}active{% endif %}">Transport</a>
+    <a href="{{ url_for('admin.testimonials_list') }}" class="{% if request.endpoint and request.endpoint.startswith('admin.testimonials') %}active{% endif %}">Testimonials</a>
     <a href="{{ url_for('admin.photos_page') }}"      class="{% if request.endpoint=='admin.photos_page' %}active{% endif %}">Photos &amp; QR</a>
     <a href="{{ url_for('admin.settings_page') }}"    class="{% if request.endpoint=='admin.settings_page' %}active{% endif %}">Settings</a>
     <a href="{{ url_for('admin.logout') }}" class="logout">Logout</a>

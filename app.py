@@ -1,11 +1,12 @@
 import json
 import os
 
-from flask import Flask, request, jsonify, render_template, abort, send_from_directory
+from flask import Flask, request, jsonify, render_template, abort, send_from_directory, redirect
 import database
 import bot
 import config
 import pricing
+import storage
 from admin import admin_bp
 
 app = Flask(__name__)
@@ -15,9 +16,17 @@ database.init_db()
 os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
 
 
+# Templates use {{ media_url(filename) }} to build the public URL for any
+# admin-uploaded file (photo / QR / testimonial avatar / guest media).
+app.jinja_env.globals["media_url"] = storage.public_url
+
+
 @app.get("/uploads/<path:filename>")
 def uploads(filename):
-    """Serves admin-uploaded images (photos + payment QR) to the public site."""
+    """Legacy path. Redirects to the Supabase public URL when configured;
+    falls back to local disk for any files left over from the pre-Supabase era."""
+    if config.SUPABASE_URL:
+        return redirect(storage.public_url(filename), code=302)
     return send_from_directory(config.UPLOAD_FOLDER, filename)
 
 
@@ -43,6 +52,7 @@ def home():
         gallery_photos=gallery_photos,
         reviews=database.list_approved_feedback(limit=6),
         guest_media=database.list_approved_feedback_media(limit=12),
+        testimonials=database.list_testimonials(),
     )
 
 
@@ -257,13 +267,10 @@ def _send_payment_message(*, phone, guest_name, booking_ref, check_in, check_out
         "you'll receive your full booking confirmation here.*"
     )
 
-    qr_path = os.path.join(config.UPLOAD_FOLDER, qr_filename) if qr_filename else ""
-    if qr_filename and os.path.exists(qr_path):
-        image_url = f"{config.BASE_URL.rstrip('/')}/uploads/{qr_filename}"
+    if qr_filename:
+        image_url = storage.public_url(qr_filename)
         whatsapp.send_image(phone, image_url, caption=caption)
     else:
-        if qr_filename:
-            print(f"[QR] settings has payment_qr_filename={qr_filename!r} but file is missing on disk at {qr_path}. Re-upload from /admin/photos.")
         whatsapp.send_text(
             phone,
             caption + "\n\n_(Payment QR not yet configured — please contact the farm.)_",
@@ -388,11 +395,14 @@ def api_feedback_media(feedback_id):
     else:
         return jsonify({"ok": False, "error": "Unsupported file type."}), 400
 
-    os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
     fname = _re.sub(r"[^a-zA-Z0-9._-]", "_", f"fb_{feedback_id}_{int(_time.time())}_{fname_raw}")
-    file.save(os.path.join(config.UPLOAD_FOLDER, fname))
+    try:
+        storage.upload(fname, file)
+    except Exception as e:
+        print(f"[feedback] upload failed: {e}")
+        return jsonify({"ok": False, "error": "Upload failed. Please try again."}), 500
     mid = database.add_feedback_media(feedback_id=feedback_id, filename=fname, kind=kind)
-    return jsonify({"ok": True, "id": mid, "url": f"/uploads/{fname}", "kind": kind}), 200
+    return jsonify({"ok": True, "id": mid, "url": storage.public_url(fname), "kind": kind}), 200
 
 
 # ── auto-feedback cron sweep (hit by an external cron-job daily) ────────────

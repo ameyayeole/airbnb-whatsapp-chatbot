@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-simulate.py — Terminal simulator for Mondkar Farm Stay WhatsApp bot.
+simulate.py — Terminal simulator for Mondys Organic Farm WhatsApp bot.
 
 Patches the `whatsapp` module so every send_* call prints to stdout
 instead of hitting the real WhatsApp API. Then reads your input and
@@ -149,7 +149,7 @@ _wa_mod.send_list    = _track_list
 # ── Main REPL ─────────────────────────────────────────────────────────────────
 
 def main():
-    ap = argparse.ArgumentParser(description="Mondkar Farm Stay bot simulator")
+    ap = argparse.ArgumentParser(description="Mondys Organic Farm bot simulator")
     ap.add_argument("--phone", default="911234567890",
                     help="Simulated sender phone number (default: 911234567890)")
     args = ap.parse_args()
@@ -157,7 +157,7 @@ def main():
     PHONE = args.phone
 
     print("\n" + "="*60)
-    print("  🌿 Mondkar Farm Stay — WhatsApp Bot Simulator")
+    print("  🌿 Mondys Organic Farm — WhatsApp Bot Simulator")
     print("="*60)
     print(f"  Simulated phone: {PHONE}")
     print("  Commands: 'reset' to restart session, Ctrl+C to quit")

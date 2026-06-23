@@ -40,9 +40,9 @@
         {% for m in f.media %}
           <div class="photo-tile">
             {% if m.kind == 'video' %}
-              <video src="{{ url_for('uploads', filename=m.filename) }}" controls style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:10px;"></video>
+              <video src="{{ media_url(m.filename) }}" controls style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:10px;"></video>
             {% else %}
-              <img src="{{ url_for('uploads', filename=m.filename) }}" alt="">
+              <img src="{{ media_url(m.filename) }}" alt="">
             {% endif %}
             <div class="fname">{{ m.kind }} · {{ m.filename }}</div>
             <form method="post" action="{{ url_for('admin.feedback_media_toggle', media_id=m.id) }}" class="inline">

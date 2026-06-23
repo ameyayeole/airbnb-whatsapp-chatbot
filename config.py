@@ -21,14 +21,21 @@ WA_BUSINESS_NUMBER = os.getenv("WA_BUSINESS_NUMBER", "919999999999")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
 SECRET_KEY     = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
-# Folder where admin-uploaded images (QR + photos) are stored. Served at /uploads/.
+# ── Supabase Storage (persistent media — survives Render redeploys) ──────────
+# Required for QR / photo uploads; falls back to local disk if unset (dev only).
+SUPABASE_URL              = os.getenv("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+SUPABASE_BUCKET           = os.getenv("SUPABASE_BUCKET", "uploads")
+
+# Legacy local upload folder — kept for backward compatibility with any old
+# files still served via the /uploads route. New uploads go to Supabase.
 UPLOAD_FOLDER  = os.path.join(os.path.dirname(__file__), "uploads")
 
 # ── Property ──────────────────────────────────────────────────────────────────
-PROPERTY_NAME    = "Mondkar Farm Stay"
+PROPERTY_NAME    = "Mondys Organic Farm"
 BOT_NAME         = "Mondy"
 WEBSITE_URL      = os.getenv("WEBSITE_URL",      "https://mondys.in")
-PROPERTY_ADDRESS = os.getenv("PROPERTY_ADDRESS", "Mondys Farm Stay, Sindhudurg, Maharashtra")
+PROPERTY_ADDRESS = os.getenv("PROPERTY_ADDRESS", "Mondys Organic Farm, Sindhudurg, Maharashtra")
 PROPERTY_GPS     = os.getenv("PROPERTY_GPS",     "https://maps.google.com/?q=16.0,73.7")
 PROPERTY_CONTACT = os.getenv("PROPERTY_CONTACT", "+91-XXXXXXXXXX")
 SUPPORT_EMAIL    = os.getenv("SUPPORT_EMAIL",    "stay@mondys.in")

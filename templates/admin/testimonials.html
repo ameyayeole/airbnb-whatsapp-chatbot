@@ -1,0 +1,73 @@
+{% extends "admin/base.html" %}
+{% block title %}Testimonials · Mondys admin{% endblock %}
+{% block content %}
+<h1>Testimonials</h1>
+<div class="kicker">curated quotes shown in the homepage carousel</div>
+
+<div class="card">
+  <h2>Add / edit testimonial</h2>
+  <form method="post" action="{{ url_for('admin.testimonials_save') }}" enctype="multipart/form-data">
+    <input type="hidden" name="id" id="t-id">
+    <div class="grid2">
+      <div class="field"><label>Author</label><input type="text" name="author" id="t-author" required placeholder="Anita & Rohan"></div>
+      <div class="field"><label>Role / location (optional)</label><input type="text" name="role" id="t-role" placeholder="Mumbai · stayed Oct 2025"></div>
+    </div>
+    <div class="field"><label>Quote</label><textarea name="quote" id="t-quote" required placeholder="The mornings on the verandah were the best part of our year…"></textarea></div>
+    <div class="grid2">
+      <div class="field"><label>Photo (optional — leave empty to keep current)</label><input type="file" name="photo" accept="image/*"></div>
+      <div class="field"><label>Sort order</label><input type="number" name="sort_order" id="t-sort" value="0"></div>
+    </div>
+    <div class="field"><label><input type="checkbox" name="active" id="t-active" checked> Active (show on homepage)</label></div>
+    <button type="submit" class="btn primary">Save</button>
+    <button type="button" class="btn" onclick="resetForm();">Clear</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>All testimonials</h2>
+  {% if testimonials %}
+  <table>
+    <thead><tr><th>Photo</th><th>Author</th><th>Quote</th><th>Order</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+      {% for t in testimonials %}
+      <tr>
+        <td>
+          {% if t.photo %}
+            <img src="{{ media_url(t.photo) }}" alt="" style="width:54px; height:54px; object-fit:cover; border-radius:50%;">
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td><strong>{{ t.author }}</strong>{% if t.role %}<br><span class="muted">{{ t.role }}</span>{% endif %}</td>
+        <td style="max-width:420px;">{{ t.quote }}</td>
+        <td>{{ t.sort_order }}</td>
+        <td>{% if t.active %}✓{% else %}✗{% endif %}</td>
+        <td>
+          <button class="btn sm" onclick='fillForm({{ t|tojson }})'>Edit</button>
+          <form class="inline" method="post" action="{{ url_for('admin.testimonials_delete', testimonial_id=t.id) }}" onsubmit="return confirm('Delete this testimonial?');">
+            <button class="btn sm danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No testimonials yet — add one above to populate the homepage carousel.</p>{% endif %}
+</div>
+
+<script>
+function fillForm(t) {
+  document.getElementById('t-id').value = t.id;
+  document.getElementById('t-author').value = t.author || '';
+  document.getElementById('t-role').value = t.role || '';
+  document.getElementById('t-quote').value = t.quote || '';
+  document.getElementById('t-sort').value = t.sort_order || 0;
+  document.getElementById('t-active').checked = !!t.active;
+  window.scrollTo(0, 0);
+}
+function resetForm() {
+  document.querySelector('form').reset();
+  document.getElementById('t-id').value = '';
+}
+</script>
+{% endblock %}
