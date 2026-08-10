@@ -24,7 +24,6 @@
 
   .guest-tile { position: relative; border-radius: 16px; overflow: hidden; }
   .guest-tile.featured { grid-column: span 2; grid-row: span 2; }
-  @media (max-width: 900px) { .guest-tile.featured { grid-column: span 1; grid-row: span 1; } }
   .guest-overlay {
     position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 18px 14px;
     background: linear-gradient(to top, rgba(44,32,19,.92) 0%, rgba(44,32,19,.55) 60%, rgba(44,32,19,0) 100%);
@@ -45,22 +44,111 @@
   .tab-panel { display: none; }
   .tab-panel.active { display: block; }
 
+  /* ── Grid primitives ───────────────────────────────────────────── */
+  .grid { display: grid; }
+  .grid-auto-lg { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .grid-auto-md { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .grid-auto-sm { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .intro-grid { grid-template-columns: 0.8fr 1.2fr; }
+  .gallery-grid { grid-template-columns: repeat(4, 1fr); grid-auto-rows: 200px; }
+  .guest-grid { grid-template-columns: repeat(4, 1fr); grid-auto-rows: 240px; }
+
+  /* ── Nav ───────────────────────────────────────────────────────── */
+  /* kept in CSS, not inline, so the mobile media query can actually override it */
+  .nav-links {
+    display: flex; gap: 28px; align-items: center;
+    font-size: 15px; color: #5a4f3f; font-weight: 500; white-space: nowrap;
+  }
+  .nav-toggle {
+    display: none; width: 42px; height: 42px; border-radius: 12px; padding: 0;
+    border: 1.5px solid #cdb793; background: transparent; color: #2C2013;
+    font-size: 18px; line-height: 1; cursor: pointer; align-items: center; justify-content: center;
+  }
+
+  /* ── Tablet ────────────────────────────────────────────────────── */
+  @media (max-width: 1024px) {
+    section { padding-left: 32px !important; padding-right: 32px !important; }
+    .hero-copy { padding: 32px 32px 40px !important; }
+    .hero-copy h1 { font-size: 52px !important; }
+    .hero-media { min-height: 480px !important; }
+    .gallery-grid { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 180px; }
+    .guest-grid { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 210px; }
+  }
+
+  /* ── Small tablet / large phone ────────────────────────────────── */
   @media (max-width: 900px) {
-    nav { padding: 14px 20px !important; }
-    nav > div { gap: 14px !important; font-size: 13px !important; }
-    nav a.cta { padding: 8px 14px !important; }
-    header { grid-template-columns: 1fr !important; }
-    header > div:first-child { padding: 28px 24px 28px !important; }
-    header > div:first-child h1 { font-size: 42px !important; }
-    section { padding-left: 24px !important; padding-right: 24px !important; }
-    section > div[style*="grid-template-columns:1fr 1fr"],
-    section > div > div[style*="grid-template-columns:1fr 1fr"],
-    section > div[style*="grid-template-columns:repeat(3,1fr)"],
-    section > div > div[style*="grid-template-columns:repeat(3,1fr)"],
-    section > div[style*="grid-template-columns:repeat(4,1fr)"],
-    section > div > div[style*="grid-template-columns:repeat(4,1fr)"] {
-      grid-template-columns: 1fr !important;
+    nav { padding: 12px 20px !important; }
+    .nav-links { gap: 16px; font-size: 13px; }
+    nav a.cta { padding: 9px 16px !important; }
+    header.hero { grid-template-columns: 1fr !important; }
+    .hero-media { order: -1; min-height: 340px !important; }
+    .hero-copy { padding: 28px 24px 36px !important; }
+    .hero-copy h1 { font-size: 40px !important; }
+    section { padding-top: 60px !important; padding-bottom: 60px !important; }
+    section.sec-flush { padding-top: 0 !important; }
+    section h2 { font-size: 34px !important; }
+    .intro-grid, .grid-2 { grid-template-columns: 1fr; }
+    .intro-grid p { font-size: 22px !important; }
+    .cta-box { padding: 48px 28px !important; }
+    .cta-box h2 { font-size: 38px !important; }
+    .testi-slide { padding: 34px 28px !important; }
+    .testi-slide .tq { font-size: 20px !important; min-height: 0 !important; }
+    #testi-prev { left: 4px !important; }
+    #testi-next { right: 4px !important; }
+  }
+
+  /* ── Phone ─────────────────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    nav { padding: 10px 16px !important; }
+    .nav-toggle { display: flex; }
+    .nav-links {
+      display: none; position: absolute; top: 100%; left: 0; right: 0;
+      flex-direction: column; align-items: stretch; gap: 0;
+      background: #F4ECDD; border-bottom: 1px solid #e3d6bf;
+      padding: 8px 16px 16px; font-size: 16px;
+      box-shadow: 0 12px 24px rgba(44,32,19,.08);
     }
+    .nav-links.open { display: flex; }
+    .nav-links a { padding: 13px 4px; border-bottom: 1px solid #e8dcc4; }
+    .nav-links a.cta { text-align: center; margin-top: 12px; border-bottom: none; padding: 14px 20px !important; }
+
+    section { padding-left: 20px !important; padding-right: 20px !important;
+              padding-top: 52px !important; padding-bottom: 52px !important; }
+    section h2 { font-size: 28px !important; }
+    section .kicker { font-size: 22px !important; }
+    .hero-copy { padding: 26px 20px 34px !important; }
+    .hero-copy h1 { font-size: 33px !important; }
+    .hero-copy p { font-size: 16px !important; }
+    .hero-copy .hero-kicker { font-size: 24px !important; }
+    .hero-media { min-height: 260px !important; }
+    .hero-stats { gap: 22px !important; }
+    .hero-stats div > div:first-child { font-size: 26px !important; }
+    .hero-cta a { flex: 1 1 auto; text-align: center; }
+
+    .gallery-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 140px; gap: 10px !important; }
+    .guest-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 170px; gap: 10px !important; }
+    .guest-tile.featured { grid-column: span 2; grid-row: span 1; }
+    .guest-tile.featured .guest-overlay .quote { font-size: 14px; -webkit-line-clamp: 3; line-clamp: 3; }
+    .guest-tile.featured .guest-overlay .byline { font-size: 19px; }
+    .guest-overlay { padding: 12px 12px 10px; gap: 4px; }
+    .guest-overlay .quote { font-size: 12px; -webkit-line-clamp: 2; line-clamp: 2; }
+    .guest-overlay .byline { font-size: 16px; }
+
+    .room-card .room-media { height: 220px !important; }
+    .room-card .room-body { padding: 22px 20px 24px !important; }
+    .room-card h3 { font-size: 25px !important; }
+
+    .cta-box { padding: 40px 22px !important; border-radius: 20px !important; }
+    .cta-box h2 { font-size: 30px !important; }
+    .cta-box .kicker { font-size: 22px !important; }
+
+    .testi-slide { padding: 28px 20px !important; }
+    .testi-slide .tq { font-size: 18px !important; }
+    #testi-prev, #testi-next { width: 38px !important; height: 38px !important; }
+
+    footer { padding-top: 36px !important; }
+    footer .foot-links { gap: 18px !important; flex-wrap: wrap; }
   }
 </style>
 </head>
@@ -69,7 +157,8 @@
 
   <nav style="position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between; padding:16px 48px; background:rgba(244,236,221,.88); backdrop-filter:blur(10px); border-bottom:1px solid #e3d6bf;">
     <a href="#top" style="text-decoration:none; font-family:'Newsreader',serif; font-size:26px; font-weight:600; color:#2C2013; letter-spacing:.02em;">{{ s.property_name or "Mondys" }}<span style="color:#B65C36;">.</span></a>
-    <div style="display:flex; gap:28px; align-items:center; font-size:15px; color:#5a4f3f; font-weight:500; white-space:nowrap;">
+    <button type="button" class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navLinks">☰</button>
+    <div class="nav-links" id="navLinks">
       <a href="#rooms" style="text-decoration:none; color:inherit;">Rooms</a>
       <a href="#activities" style="text-decoration:none; color:inherit;">Activities</a>
       <a href="#meals" style="text-decoration:none; color:inherit;">Meals</a>
@@ -78,23 +167,37 @@
       <a href="{{ wa_link }}" class="cta" style="text-decoration:none; background:#B65C36; color:#F4ECDD; padding:11px 22px; border-radius:999px; font-weight:600;">Book a Stay</a>
     </div>
   </nav>
+  <script>
+  (function() {
+    var btn = document.getElementById('navToggle'), menu = document.getElementById('navLinks');
+    if (!btn || !menu) return;
+    btn.addEventListener('click', function() {
+      var open = menu.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.textContent = open ? '✕' : '☰';
+    });
+    menu.addEventListener('click', function(e) {
+      if (e.target.tagName === 'A') { menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); btn.textContent = '☰'; }
+    });
+  })();
+  </script>
 
-  <header id="top" style="display:grid; grid-template-columns:1.08fr 0.92fr; gap:0; max-width:1320px; margin:0 auto; align-items:stretch;">
-    <div style="padding:36px 56px 48px;">
-      <div style="font-family:'Caveat',cursive; font-size:28px; color:#6E7544; margin-bottom:10px;">an organic farm stay in Kudal</div>
+  <header id="top" class="hero" style="display:grid; grid-template-columns:1.08fr 0.92fr; gap:0; max-width:1320px; margin:0 auto; align-items:stretch;">
+    <div class="hero-copy" style="padding:36px 56px 48px;">
+      <div class="hero-kicker" style="font-family:'Caveat',cursive; font-size:28px; color:#6E7544; margin-bottom:10px;">an organic farm stay in Kudal</div>
       <h1 style="font-family:'Newsreader',serif; font-weight:500; font-size:66px; line-height:1.02; margin:0 0 24px; letter-spacing:-0.02em;">Wakeup to birdsong, eat what you <em style="font-style:italic; color:#B65C36;">picked yourself.</em></h1>
       <p style="font-size:18px; line-height:1.65; color:#5a4f3f; max-width:460px; margin:0 0 34px;">A two-acre family farm in the Konkan green belt. Petting barns, bullock-cart rides, kayaks on the creek, and a breakfast plate you harvest at dawn — close to Malvan's beaches and the Sahyadri foothills.</p>
-      <div style="display:flex; gap:14px; align-items:center; margin-bottom:44px; flex-wrap:wrap;">
+      <div class="hero-cta" style="display:flex; gap:14px; align-items:center; margin-bottom:44px; flex-wrap:wrap;">
         <a href="{{ wa_link }}" style="text-decoration:none; background:#B65C36; color:#F4ECDD; padding:16px 30px; border-radius:999px; font-weight:600; font-size:16px;">Book a Stay</a>
         <a href="#rooms" style="text-decoration:none; border:1.5px solid #cdb793; color:#2C2013; padding:15px 26px; border-radius:999px; font-weight:600; font-size:16px;">Explore rooms →</a>
       </div>
-      <div style="display:flex; gap:40px; border-top:1px solid #e3d6bf; padding-top:26px;">
+      <div class="hero-stats" style="display:flex; gap:40px; flex-wrap:wrap; border-top:1px solid #e3d6bf; padding-top:26px;">
         <div><div style="font-family:'Newsreader',serif; font-size:32px;">{{ rooms|length }}</div><div style="font-size:13px; color:#8a7c66; letter-spacing:.03em;">room types</div></div>
         <div><div style="font-family:'Newsreader',serif; font-size:32px;">{{ (activities_d1|length) + (activities_d2|length) }}+</div><div style="font-size:13px; color:#8a7c66; letter-spacing:.03em;">farm activities</div></div>
         <div><div style="font-family:'Newsreader',serif; font-size:32px;">farm</div><div style="font-size:13px; color:#8a7c66; letter-spacing:.03em;">to-table meals</div></div>
       </div>
     </div>
-    <div style="position:relative; min-height:600px;">
+    <div class="hero-media" style="position:relative; min-height:600px;">
       {% if hero_photo %}
         <img class="img-fill" style="position:absolute; inset:0;" src="{{ media_url(hero_photo.filename) }}" alt="{{ hero_photo.alt_text }}">
       {% else %}
@@ -104,8 +207,8 @@
   </header>
 
   <section style="background:#6E7544; color:#F4ECDD; padding:64px 48px;">
-    <div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:0.8fr 1.2fr; gap:48px; align-items:center;">
-      <div style="font-family:'Caveat',cursive; font-size:30px; color:#E9C57E;">our little corner of Konkan</div>
+    <div class="grid intro-grid" style="max-width:1100px; margin:0 auto; gap:48px; align-items:center;">
+      <div class="kicker" style="font-family:'Caveat',cursive; font-size:30px; color:#E9C57E;">our little corner of Konkan</div>
       <p style="font-family:'Newsreader',serif; font-weight:400; font-size:28px; line-height:1.4; margin:0;">{{ s.property_name or "Mondys" }} began as a family farm and grew into a place to share it. We keep things small so mornings stay quiet, the food stays fresh, and the animals still come when you call them.</p>
     </div>
   </section>
@@ -120,11 +223,11 @@
       <p style="max-width:360px; color:#5a4f3f; font-size:15px; line-height:1.6; margin:0;">Rates are per room, per night — meals optional and priced separately.</p>
     </div>
 
-    <div style="display:grid; grid-template-columns:repeat({{ rooms|length if rooms|length <= 3 else 3 }},1fr); gap:28px;">
+    <div class="grid grid-auto-lg" style="gap:28px;">
       {% for r in rooms %}
       {% set rp = room_photos.get(r.key) %}
-      <div style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; overflow:hidden;">
-        <div style="position:relative; height:280px;">
+      <div class="room-card" style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:18px; overflow:hidden;">
+        <div class="room-media" style="position:relative; height:280px;">
           {% if rp %}
             <img class="img-fill" style="position:absolute; inset:0;" src="{{ media_url(rp.filename) }}" alt="{{ rp.alt_text or r.name }}">
           {% else %}
@@ -132,8 +235,8 @@
           {% endif %}
           <span style="position:absolute; top:18px; left:18px; background:rgba(44,32,19,.8); color:#F4ECDD; font-size:12px; letter-spacing:.08em; text-transform:uppercase; padding:6px 12px; border-radius:999px; pointer-events:none;">{{ r.inventory }} available</span>
         </div>
-        <div style="padding:28px 30px 30px;">
-          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
+        <div class="room-body" style="padding:28px 30px 30px;">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap;">
             <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:30px; margin:0;">{{ r.name }}</h3>
             <div style="text-align:right;"><div style="font-family:'Newsreader',serif; font-size:26px; color:#B65C36;">₹{{ "{:,}".format(r.rate) }}</div><div style="font-size:12px; color:#8a7c66;">/ night</div></div>
           </div>
@@ -156,7 +259,7 @@
         <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Activities &amp; adventures</h2>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:28px;">
+      <div class="grid grid-2" style="gap:28px;">
         <div style="background:#372a1a; border:1px solid #4a3a26; border-radius:18px; padding:32px 34px;">
           <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:26px; margin:0 0 6px;">🌿 Farm Activities</h3>
           <div style="font-size:13px; color:#b8a888; margin-bottom:22px;">right here on the property</div>
@@ -200,7 +303,7 @@
       <p style="max-width:340px; color:#5a4f3f; font-size:15px; line-height:1.6; margin:0;">Add a plan to any room — priced per guest, per day.</p>
     </div>
 
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:20px;">
+    <div class="grid grid-auto-md" style="gap:20px;">
       {% for m in meal_plans %}
       <div style="background:{% if loop.first %}#B65C36;color:#F4ECDD{% else %}#fffaf0;border:1px solid #e8dcc4{% endif %}; border-radius:18px; padding:28px;">
         {% if loop.first %}<span style="float:right; background:#E9C57E; color:#2C2013; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; padding:5px 11px; border-radius:999px;">Most picked</span>{% endif %}
@@ -219,7 +322,7 @@
         <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 8px; letter-spacing:-0.01em;">Reaching the farm</h2>
         <p style="color:#e6ddc8; font-size:15px; max-width:520px; margin:0 auto; line-height:1.6;">Pickup &amp; drop can be arranged from any of these points. Fares are one-way, per vehicle.</p>
       </div>
-      <div style="display:grid; grid-template-columns:repeat({{ pickup_points|length if pickup_points|length <= 4 else 4 }},1fr); gap:16px;">
+      <div class="grid grid-auto-sm" style="gap:16px;">
         {% for p in pickup_points %}
         <div style="background:rgba(244,236,221,.08); border:1px solid rgba(244,236,221,.18); border-radius:16px; padding:26px 24px;">
           <div style="font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#E9C57E; margin-bottom:10px;">📍 Pickup</div>
@@ -238,7 +341,7 @@
       <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Explore {{ s.property_name or "Mondys" }}</h2>
     </div>
 
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:200px; gap:14px;">
+    <div class="grid gallery-grid" style="gap:14px;">
       {% for g in gallery_photos %}
         <img src="{{ media_url(g.filename) }}" alt="{{ g.alt_text }}" style="width:100%; height:100%; object-fit:cover; border-radius:16px;">
       {% endfor %}
@@ -265,7 +368,7 @@
             {% for t in testimonials %}
             <div class="testi-slide" style="min-width:100%; padding:48px 56px; background:#fffaf0; box-sizing:border-box;">
               <div style="font-family:'Newsreader',serif; font-size:34px; color:#B65C36; line-height:1; margin-bottom:14px;">&ldquo;</div>
-              <p style="font-family:'Newsreader',serif; font-style:italic; font-size:24px; line-height:1.5; color:#2C2013; margin:0 0 30px; min-height:120px;">{{ t.quote }}</p>
+              <p class="tq" style="font-family:'Newsreader',serif; font-style:italic; font-size:24px; line-height:1.5; color:#2C2013; margin:0 0 30px; min-height:120px;">{{ t.quote }}</p>
               <div style="display:flex; align-items:center; gap:14px;">
                 {% if t.photo %}
                   <img src="{{ media_url(t.photo) }}" alt="{{ t.author }}" style="width:54px; height:54px; object-fit:cover; border-radius:50%; border:2px solid #e8dcc4;">
@@ -330,7 +433,7 @@
       <p style="color:#5a4f3f; font-size:15px; max-width:520px; margin:16px auto 0; line-height:1.6;">Snapshots our guests shared after their stay — barn mornings, kayak afternoons, dinners on the verandah.</p>
     </div>
 
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:240px; gap:14px;">
+    <div class="grid guest-grid" style="gap:14px;">
       {% for m in guest_media %}
         <div class="guest-tile{% if loop.index0 % 7 == 0 %} featured{% endif %}">
           {% if m.kind == 'video' %}
@@ -351,11 +454,11 @@
   {% endif %}
 
   <!-- CTA -->
-  <section style="max-width:1200px; margin:40px auto 0; padding:0 48px 80px;">
-    <div style="background:#2C2013; color:#F4ECDD; border-radius:24px; padding:72px 56px; text-align:center; position:relative; overflow:hidden;">
+  <section class="sec-flush" style="max-width:1200px; margin:40px auto 0; padding:0 48px 80px;">
+    <div class="cta-box" style="background:#2C2013; color:#F4ECDD; border-radius:24px; padding:72px 56px; text-align:center; position:relative; overflow:hidden;">
       <div style="position:absolute; inset:0; background-image:radial-gradient(circle at 80% 10%, rgba(212,155,62,.18), transparent 45%), radial-gradient(circle at 10% 90%, rgba(110,117,68,.30), transparent 50%);"></div>
       <div style="position:relative;">
-        <div style="font-family:'Caveat',cursive; font-size:28px; color:#E9C57E;">come stay with us</div>
+        <div class="kicker" style="font-family:'Caveat',cursive; font-size:28px; color:#E9C57E;">come stay with us</div>
         <h2 style="font-family:'Newsreader',serif; font-weight:400; font-size:52px; margin:6px 0 22px; line-height:1.05;">One unforgettable farm.</h2>
         <a href="{{ wa_link }}" style="text-decoration:none; display:inline-block; background:#B65C36; color:#F4ECDD; padding:17px 40px; border-radius:999px; font-weight:600; font-size:17px;">Book a Stay</a>
         <p style="color:#b8a888; font-size:14px; margin:20px 0 0;">Chat on WhatsApp — share your name &amp; email, pick your dates, and proceed to payment.</p>
@@ -367,7 +470,7 @@
         <div style="font-family:'Newsreader',serif; font-size:24px; font-weight:600;">{{ s.property_name or "Mondys" }}<span style="color:#B65C36;">.</span></div>
         <div style="font-size:14px; color:#8a7c66; margin-top:6px;">{{ s.property_address }}</div>
       </div>
-      <div style="display:flex; gap:28px; font-size:14px; color:#5a4f3f; font-weight:500;">
+      <div class="foot-links" style="display:flex; gap:28px; font-size:14px; color:#5a4f3f; font-weight:500;">
         <a href="#rooms" style="text-decoration:none; color:inherit;">Rooms</a>
         <a href="#activities" style="text-decoration:none; color:inherit;">Activities</a>
         <a href="#meals" style="text-decoration:none; color:inherit;">Meals</a>
