@@ -160,26 +160,52 @@ def booking_detail(booking_id):
 @assistant_bp.route("/walk-in", methods=["GET", "POST"])
 @assistant_required
 def walk_in():
+    if request.method == "GET":
+        return render_template("assistant/walk_in.html", **walk_in_context({}))
+
+    try:
+        booking_id, _ref = book_walk_in(request.form)
+    except RoomsUnavailable as e:
+        flash(str(e), "err")
+        return render_template("assistant/walk_in.html", **walk_in_context(request.form)), 409
+    except ValueError as e:
+        flash(str(e), "err")
+        return render_template("assistant/walk_in.html", **walk_in_context(request.form)), 400
+
+    return redirect(url_for("assistant.booking_detail", booking_id=booking_id))
+
+
+class RoomsUnavailable(ValueError):
+    """Raised when the requested room type doesn't have enough free rooms for the dates."""
+
+
+def walk_in_context(form) -> dict:
+    """Template variables for the walk-in form. Shared by the assistant desk and the owner admin."""
+    return {
+        "rooms": database.list_rooms(),
+        "meals": database.list_meal_plans(),
+        "today": datetime.now(IST).date().isoformat(),
+        "form": form,
+        "advance_percent": config.ADVANCE_PERCENT,
+    }
+
+
+def book_walk_in(form) -> tuple:
+    """Validate, price and save a walk-in booking. Returns (booking_id, booking_ref).
+
+    Raises ValueError (bad input) or RoomsUnavailable (sold out). Used by both dashboards.
+    """
     rooms = database.list_rooms()
     meals = database.list_meal_plans()
     today = datetime.now(IST).date()
 
-    if request.method == "GET":
-        return _render_walk_in(rooms, meals, today, form={})
-
-    form = request.form
-    try:
-        data = _parse_walk_in(form, rooms, meals, today)
-    except ValueError as e:
-        flash(str(e), "err")
-        return _render_walk_in(rooms, meals, today, form=form), 400
+    data = _parse_walk_in(form, rooms, meals, today)
 
     if not database.check_availability(
         data["check_in"].isoformat(), data["check_out"].isoformat(),
         data["room_type"], data["room_count"],
     ):
-        flash("Not enough rooms of that type free for these dates.", "err")
-        return _render_walk_in(rooms, meals, today, form=form), 409
+        raise RoomsUnavailable("Not enough rooms of that type free for these dates.")
 
     nights = (data["check_out"] - data["check_in"]).days
     totals = pricing.calculate_total(
@@ -240,18 +266,7 @@ def walk_in():
         )
 
     flash(f"Walk-in booking {booking_ref} created and confirmed.", "ok")
-    return redirect(url_for("assistant.booking_detail", booking_id=booking_id))
-
-
-def _render_walk_in(rooms, meals, today, form):
-    return render_template(
-        "assistant/walk_in.html",
-        rooms=rooms,
-        meals=meals,
-        today=today.isoformat(),
-        form=form,
-        advance_percent=config.ADVANCE_PERCENT,
-    )
+    return booking_id, booking_ref
 
 
 def _parse_walk_in(form, rooms, meals, today) -> dict:

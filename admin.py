@@ -19,6 +19,7 @@ from flask import (
 import config
 import database
 import storage
+from assistant import RoomsUnavailable, book_walk_in, walk_in_context
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -73,6 +74,23 @@ def dashboard():
         confirmed=confirmed,
         all_count=all_count,
     )
+
+
+@admin_bp.route("/walk-in", methods=["GET", "POST"])
+@login_required
+def walk_in():
+    """Owner-side walk-in booking. Same rules as the front-desk form (see assistant.book_walk_in)."""
+    if request.method == "GET":
+        return render_template("admin/walk_in.html", **walk_in_context({}))
+    try:
+        booking_id, _ref = book_walk_in(request.form)
+    except RoomsUnavailable as e:
+        flash(str(e), "err")
+        return render_template("admin/walk_in.html", **walk_in_context(request.form)), 409
+    except ValueError as e:
+        flash(str(e), "err")
+        return render_template("admin/walk_in.html", **walk_in_context(request.form)), 400
+    return redirect(url_for("admin.booking_detail", booking_id=booking_id))
 
 
 # ─── bookings ────────────────────────────────────────────────────────────────
