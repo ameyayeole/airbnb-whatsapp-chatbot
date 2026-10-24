@@ -226,6 +226,7 @@
 </style>
 </head>
 <body>
+{% block topnav %}
 {% if session.get('admin') %}
 <header class="topbar">
   <a href="{{ url_for('admin.dashboard') }}" class="brand">Mondys<span>.</span> <small>admin</small></a>
@@ -244,6 +245,7 @@
   </nav>
 </header>
 {% endif %}
+{% endblock %}
 
 <main>
   {% with msgs = get_flashed_messages(with_categories=true) %}

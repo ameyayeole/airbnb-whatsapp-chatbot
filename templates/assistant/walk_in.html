@@ -1,0 +1,95 @@
+{% extends "assistant/base.html" %}
+{% block title %}Walk-in booking · Mondys front desk{% endblock %}
+{% block desk %}
+<a href="{{ url_for('assistant.bookings') }}" class="muted">← Back to bookings</a>
+<div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36; margin-top:8px;">someone walked in</div>
+<h1 style="margin-top:0;">Walk-in booking</h1>
+<p class="muted" style="margin-top:-8px; margin-bottom:24px;">For guests who arrive without booking online. The booking is confirmed straight away. Total is calculated from the current rates, and the advance is {{ advance_percent }}% of the total.</p>
+
+<form method="post" action="{{ url_for('assistant.walk_in') }}" class="card">
+  <h2>Guest</h2>
+  <div class="grid2">
+    <div class="field">
+      <label>Guest name *</label>
+      <input type="text" name="guest_name" value="{{ form.get('guest_name', '') }}" required>
+    </div>
+    <div class="field">
+      <label>Phone (WhatsApp) *</label>
+      <input type="text" name="phone" value="{{ form.get('phone', '') }}" placeholder="98xxxxxxxx" inputmode="tel" required>
+    </div>
+  </div>
+  <div class="field">
+    <label>Email (optional)</label>
+    <input type="email" name="email" value="{{ form.get('email', '') }}">
+  </div>
+
+  <h2 style="margin-top:12px;">Stay</h2>
+  <div class="grid3">
+    <div class="field">
+      <label>Check-in *</label>
+      <input type="date" name="check_in" min="{{ today }}" value="{{ form.get('check_in', today) }}" required>
+    </div>
+    <div class="field">
+      <label>Check-out *</label>
+      <input type="date" name="check_out" min="{{ today }}" value="{{ form.get('check_out', '') }}" required>
+    </div>
+    <div class="field">
+      <label>Room type *</label>
+      <select name="room_type" required>
+        <option value="">Select…</option>
+        {% for r in rooms %}
+          <option value="{{ r.name }}" {% if form.get('room_type') == r.name %}selected{% endif %}>{{ r.name }} (sleeps {{ r.capacity }})</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="grid3">
+    <div class="field">
+      <label>Rooms *</label>
+      <input type="number" name="room_count" min="1" value="{{ form.get('room_count', '1') }}" required>
+    </div>
+    <div class="field">
+      <label>Adults *</label>
+      <input type="number" name="adults" min="1" value="{{ form.get('adults', '1') }}" required>
+    </div>
+    <div class="field">
+      <label>Children</label>
+      <input type="number" name="children" min="0" value="{{ form.get('children', '0') }}">
+    </div>
+  </div>
+
+  <h2 style="margin-top:12px;">Meals</h2>
+  <div class="grid2">
+    <div class="field">
+      <label>Meal plan · Day 1</label>
+      <select name="meal_plan_d1">
+        {% for mp in meals %}
+          <option value="{{ mp.name }}" {% if form.get('meal_plan_d1', 'No Meals') == mp.name %}selected{% endif %}>{{ mp.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label>Meal plan · Day 2+</label>
+      <select name="meal_plan_sub">
+        {% for mp in meals %}
+          <option value="{{ mp.name }}" {% if form.get('meal_plan_sub', 'No Meals') == mp.name %}selected{% endif %}>{{ mp.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Special requests / notes</label>
+    <textarea name="special_requests" rows="3" placeholder="Activities, food preferences, arrival time…">{{ form.get('special_requests', '') }}</textarea>
+  </div>
+
+  <div class="field">
+    <label style="text-transform:none; letter-spacing:0; font-size:15px; font-weight:500; color:#2C2013;">
+      <input type="checkbox" name="notify_guest" value="1" {% if not form or form.get('notify_guest') %}checked{% endif %}>
+      Send the guest a WhatsApp confirmation
+    </label>
+  </div>
+
+  <button type="submit" class="btn primary">Confirm walk-in booking</button>
+</form>
+{% endblock %}

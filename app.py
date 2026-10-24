@@ -1,5 +1,9 @@
 import json
 import os
+import threading
+import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from flask import Flask, request, jsonify, render_template, abort, send_from_directory, redirect
 import database
@@ -8,10 +12,14 @@ import config
 import pricing
 import storage
 from admin import admin_bp
+from assistant import assistant_bp
+
+IST = ZoneInfo("Asia/Kolkata")
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 app.register_blueprint(admin_bp)
+app.register_blueprint(assistant_bp)
 database.init_db()
 os.makedirs(config.UPLOAD_FOLDER, exist_ok=True)
 
@@ -35,7 +43,7 @@ def home():
     wa_link = f"https://wa.me/{config.WA_BUSINESS_NUMBER}?text=Hi"
     rooms = database.list_rooms()
     photos = database.list_photos()
-    hero_photo = next((p for p in photos if p["slot"] == "hero"), None)
+    hero_photos = [p for p in photos if p["slot"] == "hero"]
     room_photos = {p["slot"].split("room-", 1)[1]: p for p in photos if p["slot"].startswith("room-")}
     gallery_photos = [p for p in photos if p["slot"] == "gallery"]
     return render_template(
@@ -47,7 +55,7 @@ def home():
         activities_d1=database.list_activities(day="d1"),
         activities_d2=database.list_activities(day="d2"),
         pickup_points=database.list_pickup_points(),
-        hero_photo=hero_photo,
+        hero_photos=hero_photos,
         room_photos=room_photos,
         gallery_photos=gallery_photos,
         reviews=database.list_approved_feedback(limit=6),
@@ -405,21 +413,51 @@ def api_feedback_media(feedback_id):
     return jsonify({"ok": True, "id": mid, "url": storage.public_url(fname), "kind": kind}), 200
 
 
-# ── auto-feedback cron sweep (hit by an external cron-job daily) ────────────
+# ── automatic feedback requests ──────────────────────────────────────────────
 
-@app.get("/cron/feedback-sweep")
-def cron_feedback_sweep():
-    """Hit me once a day (e.g. cron-job.org) with ?key=<SECRET_KEY>."""
-    if request.args.get("key") != config.SECRET_KEY:
-        abort(403)
-    due = database.list_bookings_due_for_feedback(days_after_checkout=1)
+def run_feedback_sweep() -> list:
+    """Send the feedback link to confirmed guests who checked out 1–3 days ago.
+
+    Each booking is claimed in the database before sending, so it is safe for
+    several gunicorn workers, the in-process timer and the cron URL to run at once.
+    Returns the booking refs that were sent.
+    """
+    today = datetime.now(IST).date()
     sent = []
-    for b in due:
+    for b in database.list_bookings_due_for_feedback(today, min_days=1, max_days=3):
+        if not database.claim_feedback_send(b["id"]):
+            continue
         try:
             send_feedback_request(b)
             sent.append(b["booking_ref"])
         except Exception as e:
-            print(f"Sweep send failed for {b.get('booking_ref')}: {e}")
+            print(f"Feedback sweep send failed for {b.get('booking_ref')}: {e}")
+    return sent
+
+
+def _feedback_scheduler():
+    """Checks every 30 minutes; once the send hour (IST) has passed, sweeps due bookings."""
+    while True:
+        try:
+            if datetime.now(IST).hour >= config.FEEDBACK_SEND_HOUR_IST:
+                sent = run_feedback_sweep()
+                if sent:
+                    print(f"[feedback] auto-sent feedback requests for {sent}")
+        except Exception as e:
+            print(f"[feedback] scheduler error: {e}")
+        time.sleep(30 * 60)
+
+
+if config.AUTO_FEEDBACK:
+    threading.Thread(target=_feedback_scheduler, name="feedback-scheduler", daemon=True).start()
+
+
+# Backup trigger for hosts that sleep (e.g. Render free tier). Hit daily with ?key=<SECRET_KEY>.
+@app.get("/cron/feedback-sweep")
+def cron_feedback_sweep():
+    if request.args.get("key") != config.SECRET_KEY:
+        abort(403)
+    sent = run_feedback_sweep()
     return jsonify({"ok": True, "sent": sent, "count": len(sent)})
 
 
