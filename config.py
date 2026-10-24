@@ -21,6 +21,15 @@ WA_BUSINESS_NUMBER = os.getenv("WA_BUSINESS_NUMBER", "919999999999")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
 SECRET_KEY     = os.getenv("SECRET_KEY", "dev-secret-change-me")
 
+# Front-desk (read-only) dashboard for the hotel assistant. Left blank = login disabled.
+ASSISTANT_PASSWORD = os.getenv("ASSISTANT_PASSWORD", "")
+
+# ── Automatic feedback requests ───────────────────────────────────────────────
+# The app sends the feedback link itself, once a day, to guests who checked out
+# 1–3 days ago. It only starts sending after this hour (IST).
+AUTO_FEEDBACK          = os.getenv("AUTO_FEEDBACK", "1") == "1"
+FEEDBACK_SEND_HOUR_IST = int(os.getenv("FEEDBACK_SEND_HOUR_IST", "10"))
+
 # ── Supabase Storage (persistent media — survives Render redeploys) ──────────
 # Required for QR / photo uploads; falls back to local disk if unset (dev only).
 SUPABASE_URL              = os.getenv("SUPABASE_URL", "")

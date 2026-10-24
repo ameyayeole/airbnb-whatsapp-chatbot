@@ -7,6 +7,7 @@ cookie. All routes under /admin/* require login except /admin/login.
 import hmac
 import re
 import time
+import uuid
 from functools import wraps
 from werkzeug.utils import secure_filename
 
@@ -414,8 +415,9 @@ def _save_upload(file_storage, prefix: str = "") -> str:
     base = secure_filename(file_storage.filename or "upload.png")
     if not _allowed(base):
         raise ValueError("File type not allowed. Use PNG/JPG/JPEG/GIF/WEBP.")
+    # Random part keeps two same-named files uploaded in one batch from overwriting each other.
     ts = int(time.time())
-    fname = re.sub(r"[^a-zA-Z0-9._-]", "_", f"{prefix}{ts}_{base}")
+    fname = re.sub(r"[^a-zA-Z0-9._-]", "_", f"{prefix}{ts}_{uuid.uuid4().hex[:6]}_{base}")
     try:
         storage.upload(fname, file_storage)
     except Exception as e:
@@ -449,17 +451,23 @@ def photos_upload():
     if not slot:
         flash("Pick a slot.", "err")
         return redirect(url_for("admin.photos_page"))
-    file = request.files.get("file")
-    if not file or not file.filename:
+    files = [f for f in request.files.getlist("file") if f and f.filename]
+    if not files:
         flash("No file selected.", "err")
         return redirect(url_for("admin.photos_page"))
-    try:
-        fname = _save_upload(file, prefix="ph_")
-    except ValueError as e:
-        flash(str(e), "err")
-        return redirect(url_for("admin.photos_page"))
-    database.add_photo(slot=slot, filename=fname, alt_text=alt)
-    flash("Photo uploaded.", "ok")
+
+    # Several photos can be picked at once; each is saved as its own row, in pick order.
+    saved = 0
+    for file in files:
+        try:
+            fname = _save_upload(file, prefix="ph_")
+        except ValueError as e:
+            flash(f"{file.filename}: {e}", "err")
+            continue
+        database.add_photo(slot=slot, filename=fname, alt_text=alt)
+        saved += 1
+    if saved:
+        flash(f"{saved} photo{'s' if saved != 1 else ''} uploaded.", "ok")
     return redirect(url_for("admin.photos_page"))
 
 

@@ -1,0 +1,14 @@
+{% macro status_pill(status) -%}
+  {% if status == 'pending_payment' %}<span class="pill pending">Awaiting advance</span>
+  {%- elif status == 'confirmed' %}<span class="pill confirmed">Confirmed</span>
+  {%- elif status == 'cancelled' %}<span class="pill cancelled">Cancelled</span>
+  {%- else %}<span class="pill">{{ status }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro source_pill(source) -%}
+  {% if source == 'walk-in' %}<span class="pill walkin">Walk-in</span>{% else %}<span class="pill online">Online</span>{% endif %}
+{%- endmacro %}
+
+{% macro row(label, value) -%}
+  <div class="kv"><span class="kv-label">{{ label }}</span><span class="kv-value">{{ value if value not in (none, '') else '—' }}</span></div>
+{%- endmacro %}

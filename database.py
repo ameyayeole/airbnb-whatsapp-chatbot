@@ -6,7 +6,7 @@ import re
 import json
 import socket
 import threading
-from datetime import date as _date
+from datetime import date as _date, timedelta
 import psycopg2
 import psycopg2.extras
 from psycopg2 import pool as _pg_pool
@@ -181,6 +181,7 @@ def init_db():
                 ("activities_d2",    "TEXT"),
                 ("advance_amount",   "INTEGER"),
                 ("room_count",       "INTEGER DEFAULT 1"),
+                ("source",           "TEXT DEFAULT 'online'"),
             ]
             for col, defn in new_cols:
                 cur.execute(f"ALTER TABLE bookings ADD COLUMN IF NOT EXISTS {col} {defn}")
@@ -893,8 +894,12 @@ def mark_booking_feedback_sent(booking_id: int) -> None:
         _release(conn)
 
 
-def list_bookings_due_for_feedback(days_after_checkout: int = 1) -> list:
-    """Confirmed bookings whose checkout is >= N days ago and which have not had feedback requested yet."""
+def list_bookings_due_for_feedback(today: _date, min_days: int = 1, max_days: int = 3) -> list:
+    """Confirmed bookings that checked out min_days..max_days ago and have not been sent a feedback link yet.
+
+    The window means a missed day (server asleep, cron down) is caught up on the next run,
+    while old bookings from before this feature are not blasted with a link.
+    """
     conn = _connect()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
@@ -902,10 +907,27 @@ def list_bookings_due_for_feedback(days_after_checkout: int = 1) -> list:
                 SELECT * FROM bookings
                 WHERE status = 'confirmed'
                   AND feedback_sent_at IS NULL
-                  AND check_out <= (CURRENT_DATE - (%s::int))
+                  AND check_out BETWEEN %s AND %s
                 ORDER BY check_out
-            """, (days_after_checkout,))
+            """, (today - timedelta(days=max_days), today - timedelta(days=min_days)))
             return [dict(r) for r in cur.fetchall()]
+    finally:
+        _release(conn)
+
+
+def claim_feedback_send(booking_id: int) -> bool:
+    """Atomically mark a booking as 'feedback sent'. Returns False if another worker already claimed it."""
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE bookings SET feedback_sent_at = CURRENT_TIMESTAMP "
+                "WHERE id = %s AND feedback_sent_at IS NULL RETURNING id",
+                (booking_id,),
+            )
+            row = cur.fetchone()
+        conn.commit()
+        return row is not None
     finally:
         _release(conn)
 
@@ -1164,8 +1186,15 @@ def create_booking(
     activities_d2:   list,
     total_amount:    int,
     advance_amount:  int,
+    status:          str = "pending_payment",
+    source:          str = "online",
+    acknowledged:    bool = False,
 ) -> tuple:
-    """Returns (booking_id: int, booking_ref: str)."""
+    """Returns (booking_id: int, booking_ref: str).
+
+    source='walk-in' + status='confirmed' + acknowledged=True is used for guests
+    who arrive at the farm without booking online.
+    """
     conn = _connect()
     try:
         with conn.cursor() as cur:
@@ -1177,9 +1206,10 @@ def create_booking(
                      meal_plan_d1, meal_plan_sub,
                      arrival_mode, pickup_point, vehicle_type,
                      activities_d1, activities_d2,
-                     total_amount, advance_amount, status)
+                     total_amount, advance_amount, status, source, acknowledged_at)
                 VALUES
-                    (%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s, %s,%s,%s, %s,%s, %s,%s,%s, %s,%s, %s,%s,%s)
+                    (%s,%s,%s,%s,%s, %s,%s,%s,%s,%s,%s, %s,%s,%s, %s,%s, %s,%s,%s, %s,%s, %s,%s,%s,%s,
+                     CASE WHEN %s THEN CURRENT_TIMESTAMP ELSE NULL END)
                 RETURNING id
             """, (
                 phone, guest_name, email, adults, children,
@@ -1188,7 +1218,8 @@ def create_booking(
                 meal_plan_d1, meal_plan_sub,
                 arrival_mode, pickup_point, vehicle_type,
                 json.dumps(activities_d1), json.dumps(activities_d2),
-                total_amount, advance_amount, 'pending_payment',
+                total_amount, advance_amount, status, source,
+                acknowledged,
             ))
             booking_id = cur.fetchone()[0]
 

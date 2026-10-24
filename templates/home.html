@@ -22,6 +22,28 @@
   .img-ph.rounded { border-radius: 16px; }
   .img-fill { width: 100%; height: 100%; object-fit: cover; display: block; }
 
+  /* Hero carousel: slides stack on top of each other and cross-fade. */
+  .hero-slide { opacity: 0; transition: opacity .9s ease; }
+  .hero-slide.is-active { opacity: 1; }
+  .hero-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+    width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
+    background: rgba(244,236,221,.85); color: #2C2013; font-size: 26px; line-height: 1;
+    display: flex; align-items: center; justify-content: center; padding-bottom: 4px;
+  }
+  .hero-arrow:hover { background: #F4ECDD; }
+  .hero-prev { left: 16px; }
+  .hero-next { right: 16px; }
+  .hero-dots {
+    position: absolute; left: 0; right: 0; bottom: 18px; z-index: 2;
+    display: flex; justify-content: center; gap: 8px;
+  }
+  .hero-dot {
+    width: 9px; height: 9px; border-radius: 999px; border: none; padding: 0; cursor: pointer;
+    background: rgba(244,236,221,.55); transition: width .3s ease, background .3s ease;
+  }
+  .hero-dot.is-active { width: 26px; background: #F4ECDD; }
+
   .guest-tile { position: relative; border-radius: 16px; overflow: hidden; }
   .guest-tile.featured { grid-column: span 2; grid-row: span 2; }
   .guest-overlay {
@@ -197,14 +219,69 @@
         <div><div style="font-family:'Newsreader',serif; font-size:32px;">farm</div><div style="font-size:13px; color:#8a7c66; letter-spacing:.03em;">to-table meals</div></div>
       </div>
     </div>
-    <div class="hero-media" style="position:relative; min-height:600px;">
-      {% if hero_photo %}
-        <img class="img-fill" style="position:absolute; inset:0;" src="{{ media_url(hero_photo.filename) }}" alt="{{ hero_photo.alt_text }}">
+    <div class="hero-media hero-carousel" style="position:relative; min-height:600px; overflow:hidden;">
+      {% if hero_photos %}
+        {% for p in hero_photos %}
+          <img class="img-fill hero-slide{% if loop.first %} is-active{% endif %}" style="position:absolute; inset:0;" src="{{ media_url(p.filename) }}" alt="{{ p.alt_text or 'Mondys farm' }}"{% if not loop.first %} loading="lazy"{% endif %}>
+        {% endfor %}
+        {% if hero_photos|length > 1 %}
+          <button type="button" class="hero-arrow hero-prev" aria-label="Previous photo">‹</button>
+          <button type="button" class="hero-arrow hero-next" aria-label="Next photo">›</button>
+          <div class="hero-dots">
+            {% for p in hero_photos %}
+              <button type="button" class="hero-dot{% if loop.first %} is-active{% endif %}" aria-label="Show photo {{ loop.index }}"></button>
+            {% endfor %}
+          </div>
+        {% endif %}
       {% else %}
-        <div class="img-ph" style="position:absolute; inset:0; width:100%; height:100%;">Upload a hero photo in admin → Photos</div>
+        <div class="img-ph" style="position:absolute; inset:0; width:100%; height:100%;">Upload hero photos in admin → Photos</div>
       {% endif %}
     </div>
   </header>
+  <script>
+  (function() {
+    var root = document.querySelector('.hero-carousel');
+    if (!root) return;
+    var slides = root.querySelectorAll('.hero-slide');
+    var dots = root.querySelectorAll('.hero-dot');
+    if (slides.length < 2) return;
+
+    var current = 0, timer = null, DELAY = 5500;
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function show(n) {
+      current = (n + slides.length) % slides.length;
+      for (var i = 0; i < slides.length; i++) {
+        slides[i].classList.toggle('is-active', i === current);
+        if (dots[i]) dots[i].classList.toggle('is-active', i === current);
+      }
+    }
+    function stop() { if (timer) { clearInterval(timer); timer = null; } }
+    function start() { stop(); if (!reduceMotion) timer = setInterval(function() { show(current + 1); }, DELAY); }
+
+    root.querySelector('.hero-prev').addEventListener('click', function() { show(current - 1); start(); });
+    root.querySelector('.hero-next').addEventListener('click', function() { show(current + 1); start(); });
+    for (var d = 0; d < dots.length; d++) {
+      (function(k) { dots[k].addEventListener('click', function() { show(k); start(); }); })(d);
+    }
+
+    // Pause while the guest is looking at the photo, resume when they leave.
+    root.addEventListener('mouseenter', stop);
+    root.addEventListener('mouseleave', start);
+
+    // Swipe on phones.
+    var touchX = null;
+    root.addEventListener('touchstart', function(e) { touchX = e.touches[0].clientX; }, { passive: true });
+    root.addEventListener('touchend', function(e) {
+      if (touchX === null) return;
+      var dx = e.changedTouches[0].clientX - touchX;
+      touchX = null;
+      if (Math.abs(dx) > 40) { show(dx < 0 ? current + 1 : current - 1); start(); }
+    });
+
+    start();
+  })();
+  </script>
 
   <section style="background:#6E7544; color:#F4ECDD; padding:64px 48px;">
     <div class="grid intro-grid" style="max-width:1100px; margin:0 auto; gap:48px; align-items:center;">

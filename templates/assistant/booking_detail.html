@@ -1,0 +1,76 @@
+{% extends "assistant/base.html" %}
+{% import "assistant/_macros.html" as m %}
+{% block title %}{{ b.booking_ref }} · Mondys front desk{% endblock %}
+{% block desk %}
+<a href="{{ url_for('assistant.bookings') }}" class="muted">← Back to bookings</a>
+<div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin:8px 0 14px;">
+  <h1 style="margin:0;">{{ b.booking_ref or 'Booking #' ~ b.id }}</h1>
+  {{ m.status_pill(b.status) }}
+  {{ m.source_pill(b.source) }}
+  <span class="readonly-note">Read-only</span>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Guest</h2>
+    {{ m.row('Name', b.guest_name) }}
+    {{ m.row('Phone', '+' ~ b.phone if b.phone else none) }}
+    {{ m.row('Email', b.email) }}
+    {{ m.row('Booked on', b.created_at.strftime('%d %b %Y, %H:%M') if b.created_at else none) }}
+  </div>
+  <div class="card">
+    <h2>Stay</h2>
+    {{ m.row('Check-in', b.check_in ~ (' · arriving today' if b.check_in == today else '')) }}
+    {{ m.row('Check-out', b.check_out ~ (' · leaving today' if b.check_out == today else '')) }}
+    {{ m.row('Nights', b.nights) }}
+    {{ m.row('Adults', b.adults) }}
+    {{ m.row('Children', b.children or 0) }}
+    {{ m.row('Room', (b.room_type or '—') ~ ' × ' ~ (b.room_count or 1)) }}
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Meals &amp; food</h2>
+    {{ m.row('Meal plan · Day 1', b.meal_plan_d1) }}
+    {{ m.row('Meal plan · Day 2+', b.meal_plan_sub) }}
+    {{ m.row('Food preference', b.food_preference) }}
+    {{ m.row('Veg / non-veg', (b.veg_count or 0) ~ ' / ' ~ (b.nv_count or 0)) }}
+  </div>
+  <div class="card">
+    <h2>Arrival &amp; transport</h2>
+    {{ m.row('Arriving by', b.arrival_mode) }}
+    {{ m.row('Pickup point', b.pickup_point) }}
+    {{ m.row('Vehicle', b.vehicle_type) }}
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Activities · Day 1</h2>
+    {% if activities_d1 %}<ul style="margin:0; padding-left:20px; line-height:1.7;">{% for a in activities_d1 %}<li>{{ a }}</li>{% endfor %}</ul>
+    {% else %}<p class="muted" style="margin:0;">None booked.</p>{% endif %}
+  </div>
+  <div class="card">
+    <h2>Activities · Day 2</h2>
+    {% if activities_d2 %}<ul style="margin:0; padding-left:20px; line-height:1.7;">{% for a in activities_d2 %}<li>{{ a }}</li>{% endfor %}</ul>
+    {% else %}<p class="muted" style="margin:0;">None booked.</p>{% endif %}
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Special requests</h2>
+    <p style="margin:0; white-space:pre-line;">{{ b.special_requests or 'None' }}</p>
+  </div>
+  <div class="card">
+    <h2>Payment</h2>
+    {{ m.row('Total', '₹' ~ '{:,}'.format(b.total_amount or 0)) }}
+    {{ m.row('Advance due', '₹' ~ '{:,}'.format(b.advance_amount or 0)) }}
+    {{ m.row('Confirmed on', b.acknowledged_at.strftime('%d %b %Y, %H:%M') if b.acknowledged_at else none) }}
+    {{ m.row('Feedback link sent', b.feedback_sent_at.strftime('%d %b %Y, %H:%M') if b.feedback_sent_at else none) }}
+  </div>
+</div>
+
+<p class="muted" style="margin-top:8px;">This view is read-only. To change, cancel or confirm a booking, contact the owner.</p>
+{% endblock %}

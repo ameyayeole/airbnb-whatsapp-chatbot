@@ -1,0 +1,59 @@
+{% extends "assistant/base.html" %}
+{% import "assistant/_macros.html" as m %}
+{% block title %}Bookings · Mondys front desk{% endblock %}
+{% block desk %}
+<div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">{{ today.strftime('%A, %d %B') }}</div>
+<div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:24px;">
+  <h1 style="margin:0;">Bookings</h1>
+  <span class="readonly-note">Read-only</span>
+</div>
+
+<div class="tabs">
+  <a href="{{ url_for('assistant.bookings', tab='today') }}"           class="btn sm {% if tab=='today' %}primary{% endif %}">Today</a>
+  <a href="{{ url_for('assistant.bookings', tab='all') }}"             class="btn sm {% if tab=='all' %}primary{% endif %}">All</a>
+  <a href="{{ url_for('assistant.bookings', tab='pending_payment') }}" class="btn sm {% if tab=='pending_payment' %}primary{% endif %}">Awaiting advance</a>
+  <a href="{{ url_for('assistant.bookings', tab='confirmed') }}"       class="btn sm {% if tab=='confirmed' %}primary{% endif %}">Confirmed</a>
+  <a href="{{ url_for('assistant.bookings', tab='cancelled') }}"       class="btn sm {% if tab=='cancelled' %}primary{% endif %}">Cancelled</a>
+</div>
+
+<form method="get" action="{{ url_for('assistant.bookings') }}" class="search">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search name, phone, email or ref">
+  <button type="submit" class="btn">Search</button>
+</form>
+
+<div class="card">
+  {% if tab == 'today' %}
+    <p class="muted" style="margin-top:0;">Everyone arriving, staying or checking out today. Tap a guest for full details.</p>
+  {% endif %}
+  {% if bookings %}
+  <div style="overflow-x:auto;">
+  <table>
+    <thead><tr>
+      <th>Ref</th><th>Status</th><th>Guest</th><th>Dates</th><th>Stay</th><th>Room</th><th>Source</th><th></th>
+    </tr></thead>
+    <tbody>
+      {% for b in bookings %}
+      <tr>
+        <td class="mono">{{ b.booking_ref }}</td>
+        <td>{{ m.status_pill(b.status) }}</td>
+        <td><strong>{{ b.guest_name or '—' }}</strong><br><span class="muted">+{{ b.phone }}</span></td>
+        <td>
+          {{ b.check_in }} → {{ b.check_out }}
+          {% if b.check_in == today %}<br><span class="pill confirmed" style="font-size:11px;">Arriving today</span>
+          {% elif b.check_out == today %}<br><span class="pill pending" style="font-size:11px;">Leaving today</span>{% endif %}
+        </td>
+        <td>{{ b.nights }} night(s)<br><span class="muted">{{ b.adults }} adult(s){% if b.children %} + {{ b.children }} child(ren){% endif %}</span></td>
+        <td>{{ b.room_type }} × {{ b.room_count }}</td>
+        <td>{{ m.source_pill(b.source) }}</td>
+        <td><a class="btn sm" href="{{ url_for('assistant.booking_detail', booking_id=b.id) }}">View</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">No bookings to show{% if q %} for “{{ q }}”{% endif %}.</p>
+  {% endif %}
+</div>
+{% endblock %}

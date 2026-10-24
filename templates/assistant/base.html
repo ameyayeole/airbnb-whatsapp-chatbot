@@ -1,0 +1,29 @@
+{% extends "admin/base.html" %}
+{% block title %}{% block page_title %}Front desk{% endblock %} · Mondys{% endblock %}
+{% block content %}
+<style>
+  .pill.walkin { background: #e6dcf2; color: #5b3d8a; }
+  .pill.online { background: #e3ecf4; color: #355a7a; }
+  .kv { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px dashed #efe3ce; font-size: 15px; }
+  .kv:last-child { border-bottom: none; }
+  .kv-label { flex: 0 0 150px; color: #8a7c66; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; padding-top: 2px; }
+  .kv-value { flex: 1; min-width: 0; word-break: break-word; }
+  .readonly-note { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: #8a7c66; border: 1px solid #cdb793; border-radius: 999px; padding: 4px 12px; }
+  .tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+  .tabs .btn { padding: 8px 16px; font-size: 13px; }
+  .search { display: flex; gap: 10px; margin-bottom: 20px; }
+  .search input { max-width: 360px; }
+  @media (max-width: 900px) { .kv { flex-direction: column; gap: 2px; } .kv-label { flex-basis: auto; } }
+</style>
+{% block desk %}{% endblock %}
+{% endblock %}
+{% block topnav %}
+<header class="topbar">
+  <a href="{{ url_for('assistant.bookings') }}" class="brand">Mondys<span>.</span> <small>front desk</small></a>
+  <nav>
+    <a href="{{ url_for('assistant.bookings') }}" class="{% if request.endpoint in ('assistant.bookings', 'assistant.booking_detail') %}active{% endif %}">Bookings</a>
+    <a href="{{ url_for('assistant.walk_in') }}" class="{% if request.endpoint == 'assistant.walk_in' %}active{% endif %}">+ Walk-in booking</a>
+    <a href="{{ url_for('assistant.logout') }}" class="logout">Logout</a>
+  </nav>
+</header>
+{% endblock %}

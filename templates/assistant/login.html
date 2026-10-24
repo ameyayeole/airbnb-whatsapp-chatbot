@@ -1,0 +1,20 @@
+{% extends "admin/base.html" %}
+{% block title %}Front desk sign in · Mondys{% endblock %}
+{% block topnav %}{% endblock %}
+{% block content %}
+<div style="max-width:420px; margin:60px auto;">
+  <div class="card" style="padding:40px 36px;">
+    <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">front desk</div>
+    <h1 style="margin:4px 0 10px; font-size:38px;">Mondys<span style="color:#B65C36;">.</span></h1>
+    <p class="muted" style="margin:0 0 24px;">Sign in to view today's bookings and add walk-in guests.</p>
+    {% if error %}<div class="flash err">{{ error }}</div>{% endif %}
+    <form method="post" action="{{ url_for('assistant.login') }}">
+      <div class="field">
+        <label>Password</label>
+        <input type="password" name="password" autofocus required>
+      </div>
+      <button class="btn primary" type="submit" style="width:100%;">Sign in</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
