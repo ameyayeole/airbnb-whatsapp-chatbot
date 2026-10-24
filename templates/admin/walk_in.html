@@ -1,0 +1,10 @@
+{% extends "admin/base.html" %}
+{% block title %}Walk-in booking · Mondys admin{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin.bookings_list') }}" class="muted">← Back to bookings</a>
+<div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36; margin-top:8px;">someone walked in</div>
+<h1 style="margin-top:0;">Walk-in booking</h1>
+<p class="muted" style="margin-top:-8px; margin-bottom:24px;">For guests who arrive without booking online. The booking is confirmed straight away. Total is calculated from the current rates, and the advance is {{ advance_percent }}% of the total.</p>
+
+{% with form_action=url_for('admin.walk_in') %}{% include "assistant/_walk_in_form.html" %}{% endwith %}
+{% endblock %}
