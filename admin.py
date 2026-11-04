@@ -168,6 +168,29 @@ def booking_cancel(booking_id):
 
 _KV_FIELDS = [
     ("property_name",       "Property name", "text"),
+
+    ("about_kicker",        "About Us — small kicker text", "text"),
+    ("about_heading",       "About Us — heading", "text"),
+    ("about_body",          "About Us — body text", "textarea"),
+
+    ("why_1_title",         "Why stay with us — card 1 title", "text"),
+    ("why_1_text",          "Why stay with us — card 1 text", "textarea"),
+    ("why_2_title",         "Why stay with us — card 2 title", "text"),
+    ("why_2_text",          "Why stay with us — card 2 text", "textarea"),
+    ("why_3_title",         "Why stay with us — card 3 title", "text"),
+    ("why_3_text",          "Why stay with us — card 3 text", "textarea"),
+    ("why_4_title",         "Why stay with us — card 4 title", "text"),
+    ("why_4_text",          "Why stay with us — card 4 text", "textarea"),
+
+    ("faq_1_q",             "FAQ — question 1", "text"),
+    ("faq_1_a",             "FAQ — answer 1", "textarea"),
+    ("faq_2_q",             "FAQ — question 2", "text"),
+    ("faq_2_a",             "FAQ — answer 2", "textarea"),
+    ("faq_3_q",             "FAQ — question 3", "text"),
+    ("faq_3_a",             "FAQ — answer 3", "textarea"),
+    ("faq_4_q",             "FAQ — question 4", "text"),
+    ("faq_4_a",             "FAQ — answer 4", "textarea"),
+
     ("property_address",    "Address", "text"),
     ("property_gps",        "GPS link", "text"),
     ("property_contact",    "Property contact", "text"),

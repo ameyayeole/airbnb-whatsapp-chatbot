@@ -25,6 +25,7 @@
         <label>Slot</label>
         <select name="slot" required>
           <option value="hero">Homepage hero</option>
+          <option value="about">About Us photo</option>
           <option value="gallery">Gallery tile</option>
           {% for r in rooms %}
             <option value="room-{{ r.key }}">Room — {{ r.name }}</option>

@@ -46,6 +46,8 @@ def home():
     hero_photos = [p for p in photos if p["slot"] == "hero"]
     room_photos = {p["slot"].split("room-", 1)[1]: p for p in photos if p["slot"].startswith("room-")}
     gallery_photos = [p for p in photos if p["slot"] == "gallery"]
+    about_photos = [p for p in photos if p["slot"] == "about"]
+    about_photo = about_photos[0] if about_photos else None
     return render_template(
         "home.html",
         wa_link=wa_link,
@@ -58,6 +60,7 @@ def home():
         hero_photos=hero_photos,
         room_photos=room_photos,
         gallery_photos=gallery_photos,
+        about_photo=about_photo,
         reviews=database.list_approved_feedback(limit=6),
         guest_media=database.list_approved_feedback_media(limit=12),
         testimonials=database.list_testimonials(),
