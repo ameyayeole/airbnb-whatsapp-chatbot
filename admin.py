@@ -50,7 +50,11 @@ def login():
     if pw and hmac.compare_digest(pw, config.ADMIN_PASSWORD):
         session["admin"] = True
         session["logged_in_at"] = int(time.time())
-        return redirect(request.args.get("next") or url_for("admin.dashboard"))
+        # Only follow `next` to a page inside the admin dashboard, never to another site.
+        nxt = request.args.get("next") or ""
+        if not nxt.startswith("/admin"):
+            nxt = url_for("admin.dashboard")
+        return redirect(nxt)
     return render_template("admin/login.html", error="Wrong password."), 401
 
 

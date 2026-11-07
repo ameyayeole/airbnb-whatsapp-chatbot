@@ -620,6 +620,7 @@ def _rooms_available(check_in: str, check_out: str, room_type: str) -> int:
     from pricing import ROOM_INVENTORY
     import psycopg2
     total = ROOM_INVENTORY.get(room_type, 1)
+    conn = None
     try:
         conn = database._connect()
         with conn.cursor() as cur:
@@ -629,10 +630,11 @@ def _rooms_available(check_in: str, check_out: str, room_type: str) -> int:
                   AND check_in < %s AND check_out > %s
             """, (room_type, check_out, check_in))
             booked = cur.fetchone()[0]
-        conn.close()
         return max(0, total - booked)
     except Exception:
         return 0
+    finally:
+        database._release(conn)
 
 
 def _proceed_to_food(phone: str):
@@ -1255,6 +1257,10 @@ def _send_contact_info(phone: str):
 # ═══════════════════════════════════════════════════════════════════════════════
 # ── INFO / EXPLORE FLOW ───────────────────────────────────────────────────────
 # ═══════════════════════════════════════════════════════════════════════════════
+
+def _send_explore_link(phone: str):
+    """'info'/'explore'/'menu' typed mid-conversation — jump to the explore menu."""
+    _show_info_menu(phone)
 
 def _show_info_menu(phone: str):
     s = _session(phone)

@@ -73,12 +73,12 @@ def verify():
     token = request.args.get("hub.verify_token")
     challenge = request.args.get("hub.challenge")
 
-    print(f"WEBHOOK VERIFY → mode={mode} token={token} challenge={challenge}")
+    print(f"WEBHOOK VERIFY -> mode={mode} token={token} challenge={challenge}")
 
     if mode == "subscribe" and token == config.VERIFY_TOKEN:
         print("VERIFY SUCCESS")
         return challenge, 200
-    print(f"VERIFY FAILED — expected token: {config.VERIFY_TOKEN}")
+    print(f"VERIFY FAILED - expected token: {config.VERIFY_TOKEN}")
     return "Forbidden", 403
 
 
