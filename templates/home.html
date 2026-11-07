@@ -40,10 +40,25 @@
   .hero-kicker { font-family: 'Caveat', cursive; font-size: 30px; color: #E9C57E; margin-bottom: 12px; }
   .hero-cta a.primary { text-decoration: none; background: #B65C36; color: #F4ECDD; padding: 17px 32px; border-radius: 999px; font-weight: 600; font-size: 16px; }
   .hero-cta a.ghost { text-decoration: none; border: 1.5px solid rgba(244,236,221,.55); color: #F4ECDD; padding: 16px 28px; border-radius: 999px; font-weight: 600; font-size: 16px; }
-  .hero-stats { display: flex; gap: 48px; flex-wrap: wrap; justify-content: center;
-    width: 100%; margin: 0; padding: 26px 0; border-bottom: 1px solid #e3d6bf; }
-  .hero-stats .stat-n { font-family: 'Newsreader', serif; font-size: 32px; color: #2C2013; }
-  .hero-stats .stat-l { font-size: 14px; color: #8a7c66; letter-spacing: .03em; text-align: center; }
+  .hero-stats { display: flex; align-items: center; justify-content: center;
+    width: 100%; max-width: 1100px; margin: 0 auto; padding: 36px 48px; border-bottom: 1px solid #e3d6bf; }
+  .hero-stats .stat-item { flex: 1; text-align: center; padding: 0 20px; }
+  .hero-stats .stat-divider { width: 1px; height: 52px; background: #e3d6bf; flex-shrink: 0; }
+  .hero-stats .stat-n { font-family: 'Newsreader', serif; font-size: 42px; color: #2C2013; line-height: 1; }
+  .hero-stats .stat-l { font-size: 15px; color: #8a7c66; letter-spacing: .04em; text-align: center; margin-top: 8px; }
+
+  /* ── Floating "Book a Stay" button — stays fixed on screen while scrolling ── */
+  .floating-book-btn {
+    position: fixed; right: 28px; bottom: 28px; z-index: 60;
+    display: flex; align-items: center; gap: 9px;
+    background: #B65C36; color: #F4ECDD; text-decoration: none;
+    padding: 16px 28px; border-radius: 999px; font-weight: 600; font-size: 15px;
+    font-family: 'Hanken Grotesk', sans-serif;
+    box-shadow: 0 14px 30px -8px rgba(44,32,19,.5);
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .floating-book-btn:hover { transform: translateY(-2px); box-shadow: 0 18px 36px -8px rgba(44,32,19,.6); text-decoration: none; }
+  .floating-book-btn .icon { font-size: 17px; line-height: 1; }
 
   /* Hero carousel: slides stack on top of each other and cross-fade. */
   .hero-slide { opacity: 0; transition: opacity .9s ease; }
@@ -98,6 +113,7 @@
   .intro-grid { grid-template-columns: 0.8fr 1.2fr; }
   .gallery-grid { grid-template-columns: repeat(4, 1fr); grid-auto-rows: 200px; }
   .guest-grid { grid-template-columns: repeat(4, 1fr); grid-auto-rows: 240px; }
+  .highlight-grid { grid-template-columns: repeat(4, 1fr); }
 
   /* ── Nav ───────────────────────────────────────────────────────── */
   /* kept in CSS, not inline, so the mobile media query can actually override it */
@@ -119,6 +135,7 @@
     .hero-overlay h1 { font-size: 42px !important; }
     .gallery-grid { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 180px; }
     .guest-grid { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 210px; }
+    .highlight-grid { grid-template-columns: repeat(2, 1fr); }
   }
 
   /* ── Small tablet / large phone ────────────────────────────────── */
@@ -130,7 +147,8 @@
     .hero-overlay { padding: 30px 24px 34px !important; }
     .hero-overlay h1 { font-size: 34px !important; }
     .hero-overlay p { font-size: 16px !important; margin-bottom: 22px !important; }
-    .hero-stats { gap: 28px !important; padding: 18px 0 !important; }
+    .hero-stats { padding: 24px 32px !important; }
+    .hero-stats .stat-n { font-size: 36px !important; }
     section { padding-top: 60px !important; padding-bottom: 60px !important; }
     section.sec-flush { padding-top: 0 !important; }
     section h2 { font-size: 34px !important; }
@@ -168,9 +186,13 @@
     .hero-overlay h1 { font-size: 28px !important; margin-bottom: 14px !important; }
     .hero-overlay p { font-size: 15px !important; margin-bottom: 18px !important; }
     .hero-kicker { font-size: 22px !important; margin-bottom: 8px !important; }
-    .hero-stats { gap: 18px !important; padding: 16px 0 !important; }
+    .hero-stats { padding: 18px 8px !important; }
+    .hero-stats .stat-item { padding: 0 8px !important; }
     .hero-stats .stat-n { font-size: 26px !important; }
+    .hero-stats .stat-l { font-size: 12px !important; }
     .hero-cta a { flex: 1 1 auto; text-align: center; }
+
+    .floating-book-btn { right: 16px !important; bottom: 16px !important; padding: 13px 20px !important; font-size: 14px !important; }
 
     .gallery-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 140px; gap: 10px !important; }
     .guest-grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 170px; gap: 10px !important; }
@@ -184,6 +206,9 @@
     .room-card .room-media { height: 220px !important; }
     .room-card .room-body { padding: 22px 20px 24px !important; }
     .room-card h3 { font-size: 25px !important; }
+
+    .highlight-grid { grid-template-columns: repeat(2, 1fr); gap: 14px !important; }
+    .highlight-card .highlight-media { height: 150px !important; }
 
     .cta-box { padding: 40px 22px !important; border-radius: 20px !important; }
     .cta-box h2 { font-size: 30px !important; }
@@ -262,11 +287,17 @@
     </div>
 
     <div class="hero-stats">
-      <div><div class="stat-n">{{ rooms|length }}</div><div class="stat-l">room types</div></div>
-      <div><div class="stat-n">{{ (activities_d1|length) + (activities_d2|length) }}+</div><div class="stat-l">farm activities</div></div>
-      <div><div class="stat-n">farm</div><div class="stat-l">to-table meals</div></div>
+      <div class="stat-item"><div class="stat-n">{{ rooms|length }}</div><div class="stat-l">room types</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat-item"><div class="stat-n">{{ (activities_d1|length) + (activities_d2|length) }}+</div><div class="stat-l">farm activities</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat-item"><div class="stat-n">farm</div><div class="stat-l">to-table meals</div></div>
     </div>
   </header>
+
+  <a href="{{ wa_link }}" class="floating-book-btn" aria-label="Book a Stay on WhatsApp">
+    <span class="icon">💬</span> Book a Stay
+  </a>
   <script>
   (function() {
     var root = document.querySelector('.hero-carousel');
@@ -314,7 +345,7 @@
 
   <!-- ABOUT US -->
   {% set about_img = about_photo or (gallery_photos[0] if gallery_photos else None) %}
-  <section id="about" style="max-width:1400px; margin:0 auto; padding:100px 48px; border-top:1px solid #e8dcc4;">
+  <section id="about" style="max-width:1600px; margin:0 auto; padding:100px 48px; border-top:1px solid #e8dcc4;">
     <div style="text-align:center; max-width:640px; margin:0 auto 56px;">
       <div class="kicker" style="font-family:'Caveat',cursive; font-size:28px; color:#B65C36;">about us</div>
       <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:44px; margin:6px 0 0; letter-spacing:-0.01em;">{{ s.about_heading or "Where Nature Meets Warm Hospitality" }}</h2>
@@ -330,7 +361,22 @@
       </div>
       <div>
         <div style="font-family:'Caveat',cursive; font-size:24px; color:#6E7544; margin-bottom:8px;">{{ s.about_kicker or "our little corner of Konkan" }}</div>
-        <p style="color:#5a4f3f; font-size:17px; line-height:1.75; white-space:pre-line; margin:0 0 30px;">{{ s.about_body or (s.property_name or "Mondys") + " began as a family farm and grew into a place to share it. We keep things small so mornings stay quiet, the food stays fresh, and the animals still come when you call them." }}</p>
+        <p style="color:#5a4f3f; font-size:17px; line-height:1.75; white-space:pre-line; margin:0 0 28px;">{{ s.about_body or (s.property_name or "Mondys") + " began as a family farm and grew into a place to share it. We keep things small so mornings stay quiet, the food stays fresh, and the animals still come when you call them." }}</p>
+
+        {% set about_facts = [
+          s.about_fact_1 or "100% organic — grown and cooked right here on the farm",
+          s.about_fact_2 or "A family-run stay, not a hotel chain",
+          s.about_fact_3 or "Tucked into the Konkan green belt, Sindhudurg",
+        ] %}
+        <div style="display:flex; flex-direction:column; border-top:1px solid #e8dcc4; margin-bottom:30px;">
+          {% for fact in about_facts %}
+          <div style="display:flex; align-items:center; gap:12px; padding:15px 0; border-bottom:1px solid #e8dcc4;">
+            <span style="width:7px; height:7px; border-radius:50%; background:#B65C36; flex-shrink:0;"></span>
+            <span style="color:#5a4f3f; font-size:15px; line-height:1.5;">{{ fact }}</span>
+          </div>
+          {% endfor %}
+        </div>
+
         <a href="#reach" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px; font-weight:600; font-size:16px; color:#F4ECDD; background:#2C2013; padding:14px 26px; border-radius:999px;">Get in touch <span>→</span></a>
       </div>
     </div>
@@ -344,7 +390,7 @@
     (s.why_4_title or "Its own little microclimate", s.why_4_text or "The plantations and the stream keep the farm cool and green, even in summer."),
   ] %}
   <section style="background:#6E7544; color:#F4ECDD; padding:88px 48px;">
-    <div style="max-width:1400px; margin:0 auto;">
+    <div style="max-width:1600px; margin:0 auto;">
       <div style="text-align:center; margin-bottom:46px;">
         <div class="kicker" style="font-family:'Caveat',cursive; font-size:26px; color:#E9C57E;">a different kind of stay</div>
         <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Why stay with us</h2>
@@ -360,8 +406,66 @@
     </div>
   </section>
 
+  {% if attractions %}
+  <!-- NEARBY ATTRACTIONS -->
+  <section id="attractions" style="max-width:1600px; margin:0 auto; padding:88px 48px 44px;">
+    <div style="text-align:center; margin-bottom:40px;">
+      <div class="kicker" style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">{{ s.attractions_kicker or "nearby attractions" }}</div>
+      <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 10px; letter-spacing:-0.01em;">{{ s.attractions_heading or "Explore the Konkan Coast" }}</h2>
+      <p style="color:#5a4f3f; font-size:16px; max-width:560px; margin:0 auto; line-height:1.6;">{{ s.attractions_subtext or "Pristine beaches, historic forts, and serene backwaters — all within easy reach." }}</p>
+    </div>
+    <div class="grid highlight-grid" style="gap:22px;">
+      {% for c in attractions %}
+      <div class="highlight-card" style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; overflow:hidden;">
+        <div class="highlight-media" style="position:relative; height:200px;">
+          {% if c.photo %}
+            <img class="img-fill" style="position:absolute; inset:0;" src="{{ media_url(c.photo) }}" alt="{{ c.title }}">
+            <div class="photo-vignette"></div>
+          {% else %}
+            <div class="img-ph" style="position:absolute; inset:0;">{{ c.title }}</div>
+          {% endif %}
+        </div>
+        <div style="padding:18px 20px 22px;">
+          <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:19px; margin:0 0 8px;">{{ c.title }}</h3>
+          {% if c.description %}<p style="color:#5a4f3f; font-size:14px; line-height:1.55; margin:0;">{{ c.description }}</p>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if experiences %}
+  <!-- THINGS TO DO -->
+  <section id="experiences" style="max-width:1600px; margin:0 auto; padding:44px 48px 44px; border-top:1px solid #e8dcc4; border-bottom:1px solid #e8dcc4;">
+    <div style="text-align:center; margin-bottom:40px; padding-top:4px;">
+      <div class="kicker" style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">{{ s.experiences_kicker or "things to do" }}</div>
+      <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 10px; letter-spacing:-0.01em;">{{ s.experiences_heading or "Experiences That Connect You to the Land" }}</h2>
+      <p style="color:#5a4f3f; font-size:16px; max-width:560px; margin:0 auto; line-height:1.6;">{{ s.experiences_subtext or "Immerse yourself in the rhythm of rural Konkan life with our curated activities." }}</p>
+    </div>
+    <div class="grid highlight-grid" style="gap:22px;">
+      {% for c in experiences %}
+      <div class="highlight-card" style="background:#fffaf0; border:1px solid #e8dcc4; border-radius:16px; overflow:hidden;">
+        <div class="highlight-media" style="position:relative; height:200px;">
+          {% if c.photo %}
+            <img class="img-fill" style="position:absolute; inset:0;" src="{{ media_url(c.photo) }}" alt="{{ c.title }}">
+            <div class="photo-vignette"></div>
+          {% else %}
+            <div class="img-ph" style="position:absolute; inset:0;">{{ c.title }}</div>
+          {% endif %}
+        </div>
+        <div style="padding:18px 20px 22px;">
+          <h3 style="font-family:'Newsreader',serif; font-weight:500; font-size:19px; margin:0 0 8px;">{{ c.title }}</h3>
+          {% if c.description %}<p style="color:#5a4f3f; font-size:14px; line-height:1.55; margin:0;">{{ c.description }}</p>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <!-- ROOMS -->
-  <section id="rooms" style="max-width:1400px; margin:0 auto; padding:88px 48px 40px;">
+  <section id="rooms" style="max-width:1600px; margin:0 auto; padding:88px 48px 40px;">
     <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:40px; flex-wrap:wrap;">
       <div>
         <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">where you'll sleep</div>
@@ -400,7 +504,7 @@
 
   <!-- ACTIVITIES -->
   <section id="activities" style="background:#2C2013; color:#F4ECDD; padding:88px 48px;">
-    <div style="max-width:1400px; margin:0 auto;">
+    <div style="max-width:1600px; margin:0 auto;">
       <div style="text-align:center; margin-bottom:48px;">
         <div style="font-family:'Caveat',cursive; font-size:26px; color:#E9C57E;">there's always something to do</div>
         <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Activities &amp; adventures</h2>
@@ -441,7 +545,7 @@
   </section>
 
   <!-- MEALS -->
-  <section id="meals" style="max-width:1400px; margin:0 auto; padding:88px 48px;">
+  <section id="meals" style="max-width:1600px; margin:0 auto; padding:88px 48px;">
     <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:24px; margin-bottom:40px; flex-wrap:wrap;">
       <div>
         <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">grown a few steps from your plate</div>
@@ -482,7 +586,7 @@
   </section>
 
   <!-- GALLERY -->
-  <section id="explore" style="max-width:1400px; margin:0 auto; padding:88px 48px 40px;">
+  <section id="explore" style="max-width:1600px; margin:0 auto; padding:88px 48px 40px;">
     <div style="text-align:center; margin-bottom:32px;">
       <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">take a look around</div>
       <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">Explore {{ s.property_name or "Mondys" }}</h2>
@@ -573,7 +677,7 @@
 
   {% if guest_media %}
   <!-- PEOPLE HAD FUN — photos from real guests -->
-  <section id="guests" style="max-width:1400px; margin:0 auto; padding:88px 48px 40px;">
+  <section id="guests" style="max-width:1600px; margin:0 auto; padding:88px 48px 40px;">
     <div style="text-align:center; margin-bottom:40px;">
       <div style="font-family:'Caveat',cursive; font-size:26px; color:#B65C36;">moments from real stays</div>
       <h2 style="font-family:'Newsreader',serif; font-weight:500; font-size:46px; margin:4px 0 0; letter-spacing:-0.01em;">People had fun.</h2>
@@ -623,7 +727,7 @@
   </section>
 
   <!-- CTA -->
-  <section class="sec-flush" style="max-width:1400px; margin:40px auto 0; padding:0 48px 80px;">
+  <section class="sec-flush" style="max-width:1600px; margin:40px auto 0; padding:0 48px 80px;">
     <div class="cta-box" style="background:#2C2013; color:#F4ECDD; border-radius:24px; padding:72px 56px; text-align:center; position:relative; overflow:hidden;">
       <div style="position:absolute; inset:0; background-image:radial-gradient(circle at 80% 10%, rgba(212,155,62,.18), transparent 45%), radial-gradient(circle at 10% 90%, rgba(110,117,68,.30), transparent 50%);"></div>
       <div style="position:relative;">

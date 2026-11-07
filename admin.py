@@ -8,7 +8,9 @@ import hmac
 import re
 import time
 import uuid
+from datetime import date, datetime, timedelta
 from functools import wraps
+from zoneinfo import ZoneInfo
 from werkzeug.utils import secure_filename
 
 from flask import (
@@ -19,9 +21,10 @@ from flask import (
 import config
 import database
 import storage
-from assistant import RoomsUnavailable, book_walk_in, walk_in_context
+from assistant import RoomsUnavailable, book_walk_in, walk_in_context, _parse_activities
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+IST = ZoneInfo("Asia/Kolkata")
 
 
 # ─── auth ────────────────────────────────────────────────────────────────────
@@ -168,6 +171,66 @@ def booking_cancel(booking_id):
     return redirect(url_for("admin.booking_detail", booking_id=booking_id))
 
 
+# ─── schedule: day-by-day view of what's on (rooms / meals / activities) ─────
+
+_SCHEDULE_MAX_DAYS = 60  # guardrail so a typo in the date range can't render a huge page
+
+
+@admin_bp.get("/schedule")
+@login_required
+def schedule_view():
+    today = datetime.now(IST).date()
+
+    try:
+        start = date.fromisoformat(request.args["from"]) if request.args.get("from") else today
+    except ValueError:
+        start = today
+    try:
+        end = date.fromisoformat(request.args["to"]) if request.args.get("to") else start + timedelta(days=9)
+    except ValueError:
+        end = start + timedelta(days=9)
+
+    if end < start:
+        start, end = end, start
+    if (end - start).days > _SCHEDULE_MAX_DAYS - 1:
+        end = start + timedelta(days=_SCHEDULE_MAX_DAYS - 1)
+        flash(f"That range was too wide — showing the first {_SCHEDULE_MAX_DAYS} days.", "err")
+
+    active_bookings = [b for b in database.list_bookings(limit=1000) if b["status"] != "cancelled"]
+
+    days = []
+    d = start
+    while d <= end:
+        day_bookings = [b for b in active_bookings if b["check_in"] <= d <= b["check_out"]]
+        day_bookings.sort(key=lambda b: (b["check_in"] != d, (b["room_type"] or ""), (b["guest_name"] or "")))
+        days.append({
+            "date": d,
+            "bookings": day_bookings,
+            "rooms_occupied": sum(b.get("room_count") or 1 for b in day_bookings),
+            "guests": sum((b.get("adults") or 0) + (b.get("children") or 0) for b in day_bookings),
+            "arrivals": sum(1 for b in day_bookings if b["check_in"] == d),
+            "departures": sum(1 for b in day_bookings if b["check_out"] == d),
+        })
+        d += timedelta(days=1)
+
+    def _range_link(label, f, t):
+        href = url_for("admin.schedule_view", **{"from": f.isoformat(), "to": t.isoformat()})
+        return (label, href, f, t)
+
+    presets = [
+        _range_link("Today", today, today),
+        _range_link("Next 7 Days", today, today + timedelta(days=6)),
+        _range_link("Next 10 Days", today, today + timedelta(days=9)),
+        _range_link("Next 30 Days", today, today + timedelta(days=29)),
+    ]
+
+    return render_template(
+        "admin/schedule.html",
+        days=days, today=today, start=start, end=end, presets=presets,
+        parse_activities=_parse_activities,
+    )
+
+
 # ─── settings: kv (property contact, owner WA, UPI, etc.) ────────────────────
 
 _KV_FIELDS = [
@@ -176,6 +239,9 @@ _KV_FIELDS = [
     ("about_kicker",        "About Us — small kicker text", "text"),
     ("about_heading",       "About Us — heading", "text"),
     ("about_body",          "About Us — body text", "textarea"),
+    ("about_fact_1",        "About Us — quick fact 1", "text"),
+    ("about_fact_2",        "About Us — quick fact 2", "text"),
+    ("about_fact_3",        "About Us — quick fact 3", "text"),
 
     ("why_1_title",         "Why stay with us — card 1 title", "text"),
     ("why_1_text",          "Why stay with us — card 1 text", "textarea"),
@@ -344,6 +410,78 @@ def testimonials_delete(testimonial_id):
     database.delete_testimonial(testimonial_id)
     flash("Testimonial deleted.", "ok")
     return redirect(url_for("admin.testimonials_list"))
+
+
+# ─── highlights: "Nearby Attractions" + "Things To Do" (homepage, above Rooms) ─
+
+_HIGHLIGHT_SECTIONS = {"attraction": "Nearby Attractions", "experience": "Things To Do"}
+
+_HIGHLIGHT_TEXT_FIELDS = [
+    "attractions_kicker", "attractions_heading", "attractions_subtext",
+    "experiences_kicker", "experiences_heading", "experiences_subtext",
+]
+
+
+@admin_bp.get("/highlights")
+@login_required
+def highlights_list():
+    return render_template(
+        "admin/highlights.html",
+        attractions=database.list_highlight_cards(section="attraction", active_only=False),
+        experiences=database.list_highlight_cards(section="experience", active_only=False),
+        values=database.get_all_settings(),
+    )
+
+
+@admin_bp.post("/highlights/text")
+@login_required
+def highlights_text_save():
+    for key in _HIGHLIGHT_TEXT_FIELDS:
+        if key in request.form:
+            database.set_setting(key, request.form.get(key, "").strip())
+    flash("Section headings saved.", "ok")
+    return redirect(url_for("admin.highlights_list"))
+
+
+@admin_bp.post("/highlights")
+@login_required
+def highlights_save():
+    card_id = request.form.get("id") or None
+    section = request.form.get("section") or ""
+    if section not in _HIGHLIGHT_SECTIONS:
+        flash("Pick a valid section.", "err")
+        return redirect(url_for("admin.highlights_list"))
+
+    file = request.files.get("photo")
+    photo_filename = None
+    if file and file.filename:
+        try:
+            photo_filename = _save_upload(file, prefix="hl_")
+        except ValueError as e:
+            flash(str(e), "err")
+            return redirect(url_for("admin.highlights_list"))
+
+    database.upsert_highlight_card(
+        card_id=int(card_id) if card_id else None,
+        section=section,
+        title=request.form["title"].strip(),
+        description=request.form.get("description", "").strip(),
+        photo=photo_filename,
+        sort_order=int(request.form.get("sort_order") or 0),
+        active=bool(request.form.get("active")),
+    )
+    flash("Card saved.", "ok")
+    return redirect(url_for("admin.highlights_list"))
+
+
+@admin_bp.post("/highlights/<int:card_id>/delete")
+@login_required
+def highlights_delete(card_id):
+    fname = database.delete_highlight_card(card_id)
+    if fname:
+        storage.delete(fname)
+    flash("Card deleted.", "ok")
+    return redirect(url_for("admin.highlights_list"))
 
 
 # ─── activities ──────────────────────────────────────────────────────────────

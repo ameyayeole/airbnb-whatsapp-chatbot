@@ -1,3 +1,4 @@
+import hmac
 import json
 import os
 import threading
@@ -64,6 +65,8 @@ def home():
         reviews=database.list_approved_feedback(limit=6),
         guest_media=database.list_approved_feedback_media(limit=12),
         testimonials=database.list_testimonials(),
+        attractions=database.list_highlight_cards(section="attraction"),
+        experiences=database.list_highlight_cards(section="experience"),
     )
 
 
@@ -91,6 +94,16 @@ def webhook():
         bot.handle_message(parsed["phone"], parsed["msg_type"], parsed["content"])
 
     return jsonify({"status": "ok"}), 200
+
+
+def _json_for_script(obj) -> str:
+    """json.dumps, but safe to embed inside a <script> tag via |safe.
+
+    Admin-entered text (room/meal/activity names) ends up in this JSON. Without
+    this escaping, a name containing "</script>" would break out of the script
+    tag and let arbitrary HTML/JS run on the public booking page for every guest.
+    """
+    return json.dumps(obj).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
 
 
 def _booking_page_data() -> dict:
@@ -122,13 +135,13 @@ def _booking_page_data() -> dict:
     notes_js = {a["name"]: _note(a) for a in a_d1 + a_d2}
 
     return {
-        "rooms_json": json.dumps(rooms_js),
-        "meals_json": json.dumps(meals_js),
-        "pickup_json": json.dumps(pickup_js),
-        "vehicles_json": json.dumps(vehicles_js),
-        "activities_d1_json": json.dumps(_act_js(a_d1)),
-        "activities_d2_json": json.dumps(_act_js(a_d2)),
-        "notes_json": json.dumps(notes_js),
+        "rooms_json": _json_for_script(rooms_js),
+        "meals_json": _json_for_script(meals_js),
+        "pickup_json": _json_for_script(pickup_js),
+        "vehicles_json": _json_for_script(vehicles_js),
+        "activities_d1_json": _json_for_script(_act_js(a_d1)),
+        "activities_d2_json": _json_for_script(_act_js(a_d2)),
+        "notes_json": _json_for_script(notes_js),
     }
 
 
@@ -143,6 +156,7 @@ def book_page(token):
         guest_name=rec["guest_name"],
         email=rec["email"],
         phone=rec["phone"],
+        already_used=rec["used"],
         **_booking_page_data(),
     )
 
@@ -154,6 +168,8 @@ def api_book():
     rec = database.get_booking_token(token) if token else None
     if not rec:
         return jsonify({"ok": False, "error": "Invalid or expired booking link."}), 400
+    if rec["used"]:
+        return jsonify({"ok": False, "error": "This booking link has already been used."}), 409
 
     try:
         if not database.check_availability(
@@ -458,7 +474,7 @@ if config.AUTO_FEEDBACK:
 # Backup trigger for hosts that sleep (e.g. Render free tier). Hit daily with ?key=<SECRET_KEY>.
 @app.get("/cron/feedback-sweep")
 def cron_feedback_sweep():
-    if request.args.get("key") != config.SECRET_KEY:
+    if not hmac.compare_digest(request.args.get("key") or "", config.SECRET_KEY):
         abort(403)
     sent = run_feedback_sweep()
     return jsonify({"ok": True, "sent": sent, "count": len(sent)})

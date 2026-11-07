@@ -1,0 +1,113 @@
+{% extends "admin/base.html" %}
+{% block title %}Highlights · Mondys admin{% endblock %}
+{% block content %}
+<h1>Highlights</h1>
+<div class="kicker">the "Nearby Attractions" &amp; "Things To Do" sections on the homepage, shown above Rooms</div>
+<p class="muted" style="max-width:680px; margin:-10px 0 28px; font-size:14px; line-height:1.6;">
+  Two rows of cards appear on the homepage, in this order: <strong>Nearby Attractions</strong> then
+  <strong>Things To Do</strong>. Each card needs a photo, a short title and a one-line description.
+  Use <strong>Sort order</strong> to control the order within a row (lowest number first), and untick
+  <strong>Active</strong> to hide a card without deleting it.
+</p>
+
+<!-- SECTION HEADINGS -->
+<div class="card">
+  <h2>Section headings</h2>
+  <p class="muted" style="margin:-8px 0 20px;">The kicker, title and short intro line shown above each row of cards.</p>
+  <form method="post" action="{{ url_for('admin.highlights_text_save') }}">
+    <div class="grid2" style="gap:30px;">
+      <div>
+        <div style="font-weight:600; font-size:14px; color:#2C2013; margin-bottom:12px;">🏖️ Nearby Attractions</div>
+        <div class="field"><label>Small kicker text</label><input type="text" name="attractions_kicker" value="{{ values.attractions_kicker }}" placeholder="nearby attractions"></div>
+        <div class="field"><label>Heading</label><input type="text" name="attractions_heading" value="{{ values.attractions_heading }}" placeholder="Explore the Konkan Coast"></div>
+        <div class="field"><label>Intro line</label><textarea name="attractions_subtext" placeholder="Pristine beaches, historic forts…">{{ values.attractions_subtext }}</textarea></div>
+      </div>
+      <div>
+        <div style="font-weight:600; font-size:14px; color:#2C2013; margin-bottom:12px;">🧺 Things To Do</div>
+        <div class="field"><label>Small kicker text</label><input type="text" name="experiences_kicker" value="{{ values.experiences_kicker }}" placeholder="things to do"></div>
+        <div class="field"><label>Heading</label><input type="text" name="experiences_heading" value="{{ values.experiences_heading }}" placeholder="Experiences That Connect You to the Land"></div>
+        <div class="field"><label>Intro line</label><textarea name="experiences_subtext" placeholder="Immerse yourself in the rhythm…">{{ values.experiences_subtext }}</textarea></div>
+      </div>
+    </div>
+    <button type="submit" class="btn primary">Save headings</button>
+  </form>
+</div>
+
+<!-- ADD / EDIT CARD -->
+<div class="card">
+  <h2 id="card-form">Add / edit a card</h2>
+  <p class="muted" style="margin:-8px 0 20px;">Pick which row it belongs to, then fill in a photo, title and description.</p>
+  <form method="post" action="{{ url_for('admin.highlights_save') }}" enctype="multipart/form-data">
+    <input type="hidden" name="id" id="h-id">
+    <div class="grid2">
+      <div class="field">
+        <label>Appears in</label>
+        <select name="section" id="h-section">
+          <option value="attraction">Nearby Attractions</option>
+          <option value="experience">Things To Do</option>
+        </select>
+      </div>
+      <div class="field"><label>Title</label><input type="text" name="title" id="h-title" required placeholder="Tarkarli Beach"></div>
+    </div>
+    <div class="field"><label>Description (one or two lines)</label><textarea name="description" id="h-description" placeholder="Crystal-clear waters and powdery white sand…"></textarea></div>
+    <div class="grid2">
+      <div class="field"><label>Photo (leave empty to keep the current one)</label><input type="file" name="photo" accept="image/*"></div>
+      <div class="field"><label>Sort order</label><input type="number" name="sort_order" id="h-sort" value="0"></div>
+    </div>
+    <div class="field"><label><input type="checkbox" name="active" id="h-active" checked> Active (show on homepage)</label></div>
+    <button type="submit" class="btn primary">Save card</button>
+    <button type="button" class="btn" onclick="resetForm();">Clear</button>
+  </form>
+</div>
+
+{% for sec, items, title, emoji in [('attraction', attractions, 'Nearby Attractions', '🏖️'), ('experience', experiences, 'Things To Do', '🧺')] %}
+<div class="card">
+  <h2>{{ emoji }} {{ title }}</h2>
+  {% if items %}
+  <table>
+    <thead><tr><th>Photo</th><th>Title</th><th>Description</th><th>Order</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+      {% for c in items %}
+      <tr>
+        <td>
+          {% if c.photo %}
+            <img src="{{ media_url(c.photo) }}" alt="" style="width:64px; height:48px; object-fit:cover; border-radius:8px;">
+          {% else %}
+            <span class="muted">— no photo —</span>
+          {% endif %}
+        </td>
+        <td><strong>{{ c.title }}</strong></td>
+        <td style="max-width:360px;">{{ c.description }}</td>
+        <td>{{ c.sort_order }}</td>
+        <td>{% if c.active %}✓{% else %}✗{% endif %}</td>
+        <td>
+          <button class="btn sm" onclick='fillForm({{ c|tojson }})'>Edit</button>
+          <form class="inline" method="post" action="{{ url_for('admin.highlights_delete', card_id=c.id) }}" onsubmit="return confirm('Delete this card?');">
+            <button class="btn sm danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No cards yet — add one above and set "Appears in" to {{ title }}.</p>{% endif %}
+</div>
+{% endfor %}
+
+<script>
+function fillForm(c) {
+  document.getElementById('h-id').value = c.id;
+  document.getElementById('h-section').value = c.section;
+  document.getElementById('h-title').value = c.title || '';
+  document.getElementById('h-description').value = c.description || '';
+  document.getElementById('h-sort').value = c.sort_order || 0;
+  document.getElementById('h-active').checked = !!c.active;
+  document.getElementById('card-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function resetForm() {
+  var form = document.getElementById('h-id').closest('form');
+  form.reset();
+  document.getElementById('h-id').value = '';
+}
+</script>
+{% endblock %}

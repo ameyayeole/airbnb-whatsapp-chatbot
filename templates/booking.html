@@ -199,6 +199,13 @@
 </head>
 <body>
 
+{% if already_used %}
+<div style="max-width:480px; margin:120px auto; text-align:center; padding:48px 32px; background:#fffaf0; border:1px solid #e8dcc4; border-radius:20px; font-family:'Hanken Grotesk',sans-serif;">
+  <div style="width:64px; height:64px; border-radius:50%; background:#6E7544; display:flex; align-items:center; justify-content:center; font-size:30px; color:#F4ECDD; margin:0 auto 20px;">✓</div>
+  <h2 style="font-family:'Newsreader',serif; font-size:30px; margin:0 0 10px; color:#2C2013;">This booking link has already been used</h2>
+  <p style="color:#5a4f3f; font-size:15px; line-height:1.6; margin:0;">Hi {{ guest_name }}, you've already completed this booking. If you'd like to make another, please message us again on WhatsApp.</p>
+</div>
+{% else %}
 <div id="step1">
   <nav>
     <a href="/" class="brand">Mondys<span>.</span></a>
@@ -938,5 +945,6 @@ function buildStaticSelects() {
   render();
 })();
 </script>
+{% endif %}
 </body>
 </html>

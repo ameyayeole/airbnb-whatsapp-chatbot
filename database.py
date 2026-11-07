@@ -325,6 +325,21 @@ def init_db():
                 )
             """)
 
+            # ── highlight cards (homepage "Nearby Attractions" / "Things To Do") ──
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS highlight_cards (
+                    id          SERIAL PRIMARY KEY,
+                    section     TEXT NOT NULL,
+                    title       TEXT NOT NULL,
+                    description TEXT,
+                    photo       TEXT,
+                    sort_order  INTEGER DEFAULT 0,
+                    active      BOOLEAN DEFAULT TRUE,
+                    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS highlight_cards_section_idx ON highlight_cards (section, sort_order)")
+
         conn.commit()
         _seed_defaults_if_empty()
     finally:
@@ -360,6 +375,14 @@ _DEFAULT_KV = {
     "medical_contact":      "+91-XXXXXXXXXX",
     "ambulance":            "108 (free national ambulance)",
     "pharmacy_info":        "Pharmacy 2 km away. First-aid kit on premises.",
+
+    # Homepage "Nearby Attractions" / "Things To Do" section text (cards themselves live in highlight_cards).
+    "attractions_kicker":   "nearby attractions",
+    "attractions_heading":  "Explore the Konkan Coast",
+    "attractions_subtext":  "Pristine beaches, historic forts, and serene backwaters — all within easy reach of the farm.",
+    "experiences_kicker":   "things to do",
+    "experiences_heading":  "Experiences That Connect You to the Land",
+    "experiences_subtext":  "Immerse yourself in the rhythm of rural Konkan life with our curated activities.",
 }
 
 _DEFAULT_ROOMS = [
@@ -425,16 +448,45 @@ _DEFAULT_TESTIMONIALS = [
      "sort_order": 5},
 ]
 
+_DEFAULT_HIGHLIGHTS = [
+    # Nearby Attractions
+    {"section": "attraction", "title": "Tarkarli Beach",
+     "description": "Crystal-clear waters and powdery white sand — perfect for a relaxed day by the sea.",
+     "sort_order": 1},
+    {"section": "attraction", "title": "Sindhudurg Fort",
+     "description": "A magnificent sea fort built by Chhatrapati Shivaji Maharaj in 1664, a short boat ride from the shore.",
+     "sort_order": 2},
+    {"section": "attraction", "title": "Vengurla Beach",
+     "description": "A quieter, untouched stretch of coastline with dramatic sunsets.",
+     "sort_order": 3},
+    {"section": "attraction", "title": "Malvan Backwaters",
+     "description": "Peaceful boat rides through mangrove-lined creeks and fishing villages.",
+     "sort_order": 4},
+    # Things To Do / Experiences
+    {"section": "experience", "title": "Plantation Walk",
+     "description": "A guided stroll through our coconut, betel nut, spice, banana and mango plantation.",
+     "sort_order": 1},
+    {"section": "experience", "title": "Fields & Forest Trail",
+     "description": "Wander through grasslands, sacred groves and sweeping plateau views at sunset.",
+     "sort_order": 2},
+    {"section": "experience", "title": "Pottery Experience",
+     "description": "Visit a nearby potters' village and try your hand at traditional clay pottery.",
+     "sort_order": 3},
+    {"section": "experience", "title": "Farming Experience",
+     "description": "Join in whatever's on the day's schedule — from paddy planting to harvesting.",
+     "sort_order": 4},
+]
+
 
 def _seed_defaults_if_empty() -> None:
     """Populate config tables on first run. Idempotent — does nothing if table has rows."""
     conn = _connect()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM kv_settings")
-            if cur.fetchone()[0] == 0:
-                for k, v in _DEFAULT_KV.items():
-                    cur.execute("INSERT INTO kv_settings (key, value) VALUES (%s, %s) ON CONFLICT DO NOTHING", (k, v))
+            # Backfill any default key missing from kv_settings (e.g. a new setting added after
+            # first deploy). ON CONFLICT DO NOTHING never touches a key the owner already set.
+            for k, v in _DEFAULT_KV.items():
+                cur.execute("INSERT INTO kv_settings (key, value) VALUES (%s, %s) ON CONFLICT DO NOTHING", (k, v))
 
             cur.execute("SELECT COUNT(*) FROM room_types")
             if cur.fetchone()[0] == 0:
@@ -486,6 +538,14 @@ def _seed_defaults_if_empty() -> None:
                         INSERT INTO testimonials (author, role, quote, sort_order)
                         VALUES (%(author)s, %(role)s, %(quote)s, %(sort_order)s)
                     """, t)
+
+            cur.execute("SELECT COUNT(*) FROM highlight_cards")
+            if cur.fetchone()[0] == 0:
+                for h in _DEFAULT_HIGHLIGHTS:
+                    cur.execute("""
+                        INSERT INTO highlight_cards (section, title, description, sort_order)
+                        VALUES (%(section)s, %(title)s, %(description)s, %(sort_order)s)
+                    """, h)
 
         conn.commit()
     finally:
@@ -674,6 +734,67 @@ def delete_testimonial(testimonial_id: int) -> None:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM testimonials WHERE id = %s", (testimonial_id,))
         conn.commit()
+    finally:
+        _release(conn)
+
+
+# ─── highlight cards (homepage "Nearby Attractions" / "Things To Do") ────────
+
+def list_highlight_cards(section: "str | None" = None, active_only: bool = True) -> list:
+    conn = _connect()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            q = "SELECT * FROM highlight_cards"
+            clauses, params = [], []
+            if section:
+                clauses.append("section = %s")
+                params.append(section)
+            if active_only:
+                clauses.append("active = TRUE")
+            if clauses:
+                q += " WHERE " + " AND ".join(clauses)
+            q += " ORDER BY sort_order, id"
+            cur.execute(q, params)
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        _release(conn)
+
+
+def upsert_highlight_card(section: str, title: str, description: "str | None" = None,
+                          photo: "str | None" = None, sort_order: int = 0,
+                          active: bool = True, card_id: "int | None" = None) -> None:
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            if card_id:
+                if photo is None:
+                    cur.execute(
+                        "UPDATE highlight_cards SET section=%s, title=%s, description=%s, sort_order=%s, active=%s WHERE id=%s",
+                        (section, title, description, sort_order, active, card_id),
+                    )
+                else:
+                    cur.execute(
+                        "UPDATE highlight_cards SET section=%s, title=%s, description=%s, photo=%s, sort_order=%s, active=%s WHERE id=%s",
+                        (section, title, description, photo, sort_order, active, card_id),
+                    )
+            else:
+                cur.execute(
+                    "INSERT INTO highlight_cards (section, title, description, photo, sort_order, active) VALUES (%s,%s,%s,%s,%s,%s)",
+                    (section, title, description, photo, sort_order, active),
+                )
+        conn.commit()
+    finally:
+        _release(conn)
+
+
+def delete_highlight_card(card_id: int) -> "str | None":
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM highlight_cards WHERE id = %s RETURNING photo", (card_id,))
+            row = cur.fetchone()
+        conn.commit()
+        return row[0] if row else None
     finally:
         _release(conn)
 

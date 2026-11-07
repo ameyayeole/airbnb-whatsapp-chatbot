@@ -233,8 +233,10 @@
   <nav>
     <a href="{{ url_for('admin.dashboard') }}"        class="{% if request.endpoint=='admin.dashboard' %}active{% endif %}">Dashboard</a>
     <a href="{{ url_for('admin.bookings_list') }}"    class="{% if request.endpoint and request.endpoint.startswith('admin.booking') %}active{% endif %}">Bookings</a>
+    <a href="{{ url_for('admin.schedule_view') }}"    class="{% if request.endpoint=='admin.schedule_view' %}active{% endif %}">Schedule</a>
     <a href="{{ url_for('admin.walk_in') }}"          class="{% if request.endpoint=='admin.walk_in' %}active{% endif %}">+ Walk-in</a>
     <a href="{{ url_for('admin.feedback_list') }}"    class="{% if request.endpoint and request.endpoint.startswith('admin.feedback') %}active{% endif %}">Feedback</a>
+    <a href="{{ url_for('admin.highlights_list') }}"  class="{% if request.endpoint and request.endpoint.startswith('admin.highlights') %}active{% endif %}">Highlights</a>
     <a href="{{ url_for('admin.rooms_list') }}"       class="{% if request.endpoint=='admin.rooms_list' %}active{% endif %}">Rooms</a>
     <a href="{{ url_for('admin.meals_list') }}"       class="{% if request.endpoint=='admin.meals_list' %}active{% endif %}">Meals</a>
     <a href="{{ url_for('admin.activities_list') }}"  class="{% if request.endpoint=='admin.activities_list' %}active{% endif %}">Activities</a>

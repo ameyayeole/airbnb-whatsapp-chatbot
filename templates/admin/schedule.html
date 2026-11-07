@@ -1,0 +1,76 @@
+{% extends "admin/base.html" %}
+{% block title %}Schedule · Mondys admin{% endblock %}
+{% block content %}
+<h1>Schedule</h1>
+<div class="kicker">see rooms, meals &amp; activities for any day, at a glance</div>
+<p class="muted" style="max-width:680px; margin:-10px 0 28px; font-size:14px; line-height:1.6;">
+  One row per day. Each day lists every guest staying that night — their room, which meal plan
+  applies that day, and any activities they've booked for the stay — plus who's arriving and who's
+  leaving. Pick a quick range below, or set your own From/To dates (one date, or a stretch of many).
+</p>
+
+<div class="card" style="padding:20px 22px;">
+  <div class="filter-bar" style="margin-bottom:18px;">
+    {% for label, href, p_start, p_end in presets %}
+      <a href="{{ href }}" class="btn sm {% if start == p_start and end == p_end %}primary{% endif %}">{{ label }}</a>
+    {% endfor %}
+  </div>
+  <form method="get" style="display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap;">
+    <div class="field" style="margin:0; min-width:170px;">
+      <label>From</label>
+      <input type="date" name="from" value="{{ start.isoformat() }}">
+    </div>
+    <div class="field" style="margin:0; min-width:170px;">
+      <label>To</label>
+      <input type="date" name="to" value="{{ end.isoformat() }}">
+    </div>
+    <button type="submit" class="btn primary">Apply</button>
+  </form>
+</div>
+
+{% for day in days %}
+<div class="card">
+  <div style="display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:4px;">
+    <h2 style="margin:0;">
+      {{ day.date.strftime('%A, %d %b %Y') }}
+      {% if day.date == today %}<span class="pill confirmed" style="margin-left:8px; vertical-align:middle;">Today</span>{% endif %}
+    </h2>
+  </div>
+  <p class="muted" style="margin:0 0 18px;">
+    {{ day.bookings|length }} booking{{ 's' if day.bookings|length != 1 else '' }} ·
+    {{ day.rooms_occupied }} room{{ 's' if day.rooms_occupied != 1 else '' }} ·
+    {{ day.guests }} guest{{ 's' if day.guests != 1 else '' }} ·
+    {{ day.arrivals }} arriving · {{ day.departures }} departing
+  </p>
+
+  {% if day.bookings %}
+  <table>
+    <thead><tr><th>Guest</th><th>Room</th><th>Meals today</th><th>Activities booked</th><th>Pax</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for b in day.bookings %}
+      <tr>
+        <td><strong>{{ b.guest_name }}</strong><br><span class="muted">+{{ b.phone }}</span></td>
+        <td>{{ b.room_type }} × {{ b.room_count or 1 }}</td>
+        <td>{{ b.meal_plan_d1 if b.check_in == day.date else b.meal_plan_sub }}</td>
+        <td style="max-width:260px;">
+          {% set acts = parse_activities(b.activities_d1) + parse_activities(b.activities_d2) %}
+          {% if acts %}{{ acts|join(', ') }}{% else %}<span class="muted">—</span>{% endif %}
+        </td>
+        <td>{{ (b.adults or 0) + (b.children or 0) }}</td>
+        <td>
+          {% if b.check_in == day.date %}<span class="pill confirmed">Arriving</span>
+          {% elif b.check_out == day.date %}<span class="pill pending">Departing</span>
+          {% else %}<span class="pill cancelled">Staying</span>{% endif %}
+          {% if b.status == 'pending_payment' %}<br><span class="muted">Payment pending</span>{% endif %}
+        </td>
+        <td><a class="btn sm" href="{{ url_for('admin.booking_detail', booking_id=b.id) }}">Open</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No bookings for this day.</p>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
