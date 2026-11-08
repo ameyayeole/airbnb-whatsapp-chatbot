@@ -182,9 +182,37 @@ def init_db():
                 ("advance_amount",   "INTEGER"),
                 ("room_count",       "INTEGER DEFAULT 1"),
                 ("source",           "TEXT DEFAULT 'online'"),
+                ("balance_paid_at",  "TIMESTAMP"),
             ]
+
+            # ── payments ledger (every rupee actually collected, advance + any later
+            # cash/UPI/card top-ups at the desk) — "fully paid" is always computed from
+            # SUM(payments.amount), never a hand-set flag, so it can never drift out of sync.
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS payments (
+                    id          SERIAL PRIMARY KEY,
+                    booking_id  INTEGER NOT NULL,
+                    amount      INTEGER NOT NULL,
+                    method      TEXT,
+                    note        TEXT,
+                    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cur.execute("CREATE INDEX IF NOT EXISTS payments_booking_idx ON payments (booking_id)")
             for col, defn in new_cols:
                 cur.execute(f"ALTER TABLE bookings ADD COLUMN IF NOT EXISTS {col} {defn}")
+
+            # Backfill: bookings already acknowledged before the payments ledger existed never got
+            # their advance recorded as a payment. Without this they'd wrongly show the full total
+            # as outstanding. Safe to run every startup — only touches bookings with zero payment rows.
+            cur.execute("""
+                INSERT INTO payments (booking_id, amount, method, note)
+                SELECT id, advance_amount, 'Advance', 'Backfilled when the payments ledger was introduced'
+                FROM bookings
+                WHERE acknowledged_at IS NOT NULL
+                  AND advance_amount IS NOT NULL AND advance_amount > 0
+                  AND id NOT IN (SELECT booking_id FROM payments)
+            """)
 
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS booking_tokens (
@@ -978,14 +1006,25 @@ def delete_photo(photo_id: int) -> "str | None":
 # BOOKING STATUS WORKFLOW
 # ═══════════════════════════════════════════════════════════════════════════════
 
+_AMOUNT_PAID_SQL = (
+    "COALESCE((SELECT SUM(amount) FROM payments WHERE payments.booking_id = bookings.id), 0) AS amount_paid"
+)
+
+
 def list_bookings(status: "str | None" = None, limit: int = 200) -> list:
     conn = _connect()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             if status:
-                cur.execute("SELECT * FROM bookings WHERE status=%s ORDER BY created_at DESC LIMIT %s", (status, limit))
+                cur.execute(
+                    f"SELECT bookings.*, {_AMOUNT_PAID_SQL} FROM bookings WHERE status=%s ORDER BY created_at DESC LIMIT %s",
+                    (status, limit),
+                )
             else:
-                cur.execute("SELECT * FROM bookings ORDER BY created_at DESC LIMIT %s", (limit,))
+                cur.execute(
+                    f"SELECT bookings.*, {_AMOUNT_PAID_SQL} FROM bookings ORDER BY created_at DESC LIMIT %s",
+                    (limit,),
+                )
             return [dict(r) for r in cur.fetchall()]
     finally:
         _release(conn)
@@ -995,9 +1034,56 @@ def get_booking(booking_id: int) -> "dict | None":
     conn = _connect()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("SELECT * FROM bookings WHERE id=%s", (booking_id,))
+            cur.execute(f"SELECT bookings.*, {_AMOUNT_PAID_SQL} FROM bookings WHERE id=%s", (booking_id,))
             row = cur.fetchone()
             return dict(row) if row else None
+    finally:
+        _release(conn)
+
+
+def add_payment(booking_id: int, amount: int, method: "str | None" = None, note: "str | None" = None) -> int:
+    """Record a payment actually collected (advance, or a later cash/UPI/card top-up at the desk)."""
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO payments (booking_id, amount, method, note) VALUES (%s,%s,%s,%s) RETURNING id",
+                (booking_id, amount, method, note),
+            )
+            payment_id = cur.fetchone()[0]
+        conn.commit()
+        return payment_id
+    finally:
+        _release(conn)
+
+
+def list_payments(booking_id: int) -> list:
+    conn = _connect()
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM payments WHERE booking_id=%s ORDER BY created_at", (booking_id,))
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        _release(conn)
+
+
+def has_recent_duplicate_payment(booking_id: int, amount: int, method: "str | None", within_seconds: int = 10) -> bool:
+    """True if a payment with this exact amount+method was recorded for this booking in the
+    last `within_seconds` — catches an accidental double-submit (double-click, slow network +
+    resubmit) without blocking a genuinely repeated payment made minutes apart."""
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1 FROM payments
+                WHERE booking_id = %s AND amount = %s AND method IS NOT DISTINCT FROM %s
+                  AND created_at > CURRENT_TIMESTAMP - (%s || ' seconds')::interval
+                LIMIT 1
+                """,
+                (booking_id, amount, method, within_seconds),
+            )
+            return cur.fetchone() is not None
     finally:
         _release(conn)
 
@@ -1089,6 +1175,18 @@ def mark_feedback_token_used(token: str) -> None:
                 (token,),
             )
         conn.commit()
+    finally:
+        _release(conn)
+
+
+def has_feedback(booking_id: int) -> bool:
+    """True if this booking already has a feedback entry — guards against a guest submitting
+    twice via two different links (e.g. "Send feedback request" was clicked more than once)."""
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM feedback WHERE booking_id = %s LIMIT 1", (booking_id,))
+            return cur.fetchone() is not None
     finally:
         _release(conn)
 
@@ -1310,13 +1408,17 @@ def create_booking(
     status:          str = "pending_payment",
     source:          str = "online",
     acknowledged:    bool = False,
+    _conn=None,
 ) -> tuple:
     """Returns (booking_id: int, booking_ref: str).
 
     source='walk-in' + status='confirmed' + acknowledged=True is used for guests
     who arrive at the farm without booking online.
+
+    Internal: pass _conn to run inside an existing transaction (see
+    create_booking_if_available) instead of opening/committing/releasing a new one.
     """
-    conn = _connect()
+    conn = _conn or _connect()
     try:
         with conn.cursor() as cur:
             cur.execute("""
@@ -1348,8 +1450,50 @@ def create_booking(
             ref = f"MFS-{_date.today().strftime('%Y%m%d')}-{booking_id:04d}"
             cur.execute("UPDATE bookings SET booking_ref = %s WHERE id = %s", (ref, booking_id))
 
-        conn.commit()
+        if _conn is None:
+            conn.commit()
         return booking_id, ref
+    finally:
+        if _conn is None:
+            _release(conn)
+
+
+def create_booking_if_available(*, check_in, check_out, room_type, room_count, **kwargs) -> "tuple | None":
+    """Atomically check room availability and create the booking in a single transaction.
+
+    check_availability() + create_booking() as two separate calls (the old pattern, still
+    used nowhere now) have a race: two requests for the last free room could each pass the
+    check before either has inserted, and both would succeed — an actual overbooking. This
+    closes that gap with a Postgres advisory lock keyed on the room type, so a second,
+    near-simultaneous attempt to book the same room type waits for the first to finish
+    (commit or roll back) before it even runs its own availability check.
+
+    Returns (booking_id, booking_ref), or None if the room isn't available.
+    """
+    conn = _connect()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (room_type,))
+
+            cur.execute("SELECT inventory FROM room_types WHERE name = %s", (room_type,))
+            row = cur.fetchone()
+            total_inventory = row[0] if row else 1
+            cur.execute("""
+                SELECT COALESCE(SUM(room_count), 0) FROM bookings
+                WHERE  status    != 'cancelled'
+                  AND  room_type  = %s
+                  AND  check_in   < %s
+                  AND  check_out  > %s
+            """, (room_type, check_out, check_in))
+            already_booked = cur.fetchone()[0]
+            if already_booked + room_count > total_inventory:
+                conn.rollback()  # releases the advisory lock too
+                return None
+
+        result = create_booking(check_in=check_in, check_out=check_out, room_type=room_type,
+                                 room_count=room_count, _conn=conn, **kwargs)
+        conn.commit()
+        return result
     finally:
         _release(conn)
 

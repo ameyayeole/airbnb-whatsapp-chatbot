@@ -14,7 +14,7 @@
   {% if bookings %}
   <table>
     <thead><tr>
-      <th>Ref</th><th>Status</th><th>Guest</th><th>Dates</th><th>Room</th><th>Total</th><th>Advance</th><th>Created</th><th></th>
+      <th>Ref</th><th>Status</th><th>Guest</th><th>Dates</th><th>Room</th><th>Total</th><th>Advance</th><th>Pending</th><th>Created</th><th></th>
     </tr></thead>
     <tbody>
       {% for b in bookings %}
@@ -31,6 +31,20 @@
         <td>{{ b.room_type }} × {{ b.room_count }}</td>
         <td>₹{{ '{:,}'.format(b.total_amount or 0) }}</td>
         <td>₹{{ '{:,}'.format(b.advance_amount or 0) }}</td>
+        <td>
+          {% if b.status == 'cancelled' %}
+            <span class="muted">—</span>
+          {% elif b.status == 'pending_payment' %}
+            <span class="pill pending">₹{{ '{:,}'.format(b.total_amount or 0) }}</span>
+          {% else %}
+            {% set balance_due = (b.total_amount or 0) - (b.amount_paid or 0) %}
+            {% if balance_due <= 0 %}
+              <span class="pill confirmed">✓ Paid</span>
+            {% else %}
+              <span class="pill pending">₹{{ '{:,}'.format(balance_due) }}</span>
+            {% endif %}
+          {% endif %}
+        </td>
         <td class="muted">{{ b.created_at.strftime('%d %b, %H:%M') if b.created_at else '' }}</td>
         <td><a class="btn sm" href="{{ url_for('admin.booking_detail', booking_id=b.id) }}">Open</a></td>
       </tr>

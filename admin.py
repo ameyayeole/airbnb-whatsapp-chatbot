@@ -8,7 +8,7 @@ import hmac
 import re
 import time
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from functools import wraps
 from zoneinfo import ZoneInfo
 from werkzeug.utils import secure_filename
@@ -21,7 +21,10 @@ from flask import (
 import config
 import database
 import storage
-from assistant import RoomsUnavailable, book_walk_in, walk_in_context, _parse_activities
+from assistant import (
+    RoomsUnavailable, PaymentError, book_walk_in, walk_in_context, record_payment,
+    parse_schedule_range, build_schedule_days, schedule_presets, _parse_activities,
+)
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 IST = ZoneInfo("Asia/Kolkata")
@@ -116,7 +119,12 @@ def booking_detail(booking_id):
     b = database.get_booking(booking_id)
     if not b:
         abort(404)
-    return render_template("admin/booking_detail.html", b=b)
+    return render_template(
+        "admin/booking_detail.html", b=b,
+        activities_d1=_parse_activities(b.get("activities_d1")),
+        activities_d2=_parse_activities(b.get("activities_d2")),
+        payments=database.list_payments(booking_id),
+    )
 
 
 @admin_bp.post("/bookings/<int:booking_id>/acknowledge")
@@ -126,7 +134,15 @@ def booking_acknowledge(booking_id):
     b = database.get_booking(booking_id)
     if not b:
         abort(404)
+    if b.get("acknowledged_at"):
+        # A double-click or page resubmit — without this guard it would record the
+        # advance a second time and send the guest a duplicate confirmation message.
+        flash(f"Booking {b['booking_ref']} was already acknowledged.", "err")
+        return redirect(url_for("admin.booking_detail", booking_id=booking_id))
     database.update_booking_status(booking_id, "confirmed", mark_acknowledged=True)
+    # The advance is the first entry in the payments ledger, so "amount paid so far"
+    # (used everywhere else — the bookings list, the detail page) is accurate from the start.
+    database.add_payment(booking_id, b["advance_amount"] or 0, method="Advance", note="Recorded on acknowledgement")
 
     # Notify the guest on WhatsApp that the booking is now confirmed.
     try:
@@ -151,12 +167,33 @@ def booking_acknowledge(booking_id):
     return redirect(url_for("admin.booking_detail", booking_id=booking_id))
 
 
+@admin_bp.post("/bookings/<int:booking_id>/record-payment")
+@login_required
+def booking_record_payment(booking_id):
+    """Record a payment actually collected — e.g. cash, UPI or card at the desk. Supports
+    partial amounts. Shares assistant.record_payment() with the front-desk dashboard, so
+    both behave identically — same validation, same WhatsApp wording."""
+    b = database.get_booking(booking_id)
+    if not b:
+        abort(404)
+    try:
+        amount = record_payment(booking_id, request.form)
+    except PaymentError as e:
+        flash(str(e), "err")
+        return redirect(url_for("admin.booking_detail", booking_id=booking_id))
+    flash(f"₹{amount:,} payment recorded for {b['booking_ref']} and guest notified.", "ok")
+    return redirect(url_for("admin.booking_detail", booking_id=booking_id))
+
+
 @admin_bp.post("/bookings/<int:booking_id>/cancel")
 @login_required
 def booking_cancel(booking_id):
     b = database.get_booking(booking_id)
     if not b:
         abort(404)
+    if b["status"] == "cancelled":
+        flash(f"Booking {b['booking_ref']} is already cancelled.", "err")
+        return redirect(url_for("admin.booking_detail", booking_id=booking_id))
     database.update_booking_status(booking_id, "cancelled")
     try:
         import whatsapp
@@ -173,57 +210,15 @@ def booking_cancel(booking_id):
 
 # ─── schedule: day-by-day view of what's on (rooms / meals / activities) ─────
 
-_SCHEDULE_MAX_DAYS = 60  # guardrail so a typo in the date range can't render a huge page
-
-
 @admin_bp.get("/schedule")
 @login_required
 def schedule_view():
     today = datetime.now(IST).date()
-
-    try:
-        start = date.fromisoformat(request.args["from"]) if request.args.get("from") else today
-    except ValueError:
-        start = today
-    try:
-        end = date.fromisoformat(request.args["to"]) if request.args.get("to") else start + timedelta(days=9)
-    except ValueError:
-        end = start + timedelta(days=9)
-
-    if end < start:
-        start, end = end, start
-    if (end - start).days > _SCHEDULE_MAX_DAYS - 1:
-        end = start + timedelta(days=_SCHEDULE_MAX_DAYS - 1)
-        flash(f"That range was too wide — showing the first {_SCHEDULE_MAX_DAYS} days.", "err")
-
-    active_bookings = [b for b in database.list_bookings(limit=1000) if b["status"] != "cancelled"]
-
-    days = []
-    d = start
-    while d <= end:
-        day_bookings = [b for b in active_bookings if b["check_in"] <= d <= b["check_out"]]
-        day_bookings.sort(key=lambda b: (b["check_in"] != d, (b["room_type"] or ""), (b["guest_name"] or "")))
-        days.append({
-            "date": d,
-            "bookings": day_bookings,
-            "rooms_occupied": sum(b.get("room_count") or 1 for b in day_bookings),
-            "guests": sum((b.get("adults") or 0) + (b.get("children") or 0) for b in day_bookings),
-            "arrivals": sum(1 for b in day_bookings if b["check_in"] == d),
-            "departures": sum(1 for b in day_bookings if b["check_out"] == d),
-        })
-        d += timedelta(days=1)
-
-    def _range_link(label, f, t):
-        href = url_for("admin.schedule_view", **{"from": f.isoformat(), "to": t.isoformat()})
-        return (label, href, f, t)
-
-    presets = [
-        _range_link("Today", today, today),
-        _range_link("Next 7 Days", today, today + timedelta(days=6)),
-        _range_link("Next 10 Days", today, today + timedelta(days=9)),
-        _range_link("Next 30 Days", today, today + timedelta(days=29)),
-    ]
-
+    start, end, warning = parse_schedule_range(request.args, today)
+    if warning:
+        flash(warning, "err")
+    days = build_schedule_days(start, end)
+    presets = schedule_presets(today, "admin.schedule_view")
     return render_template(
         "admin/schedule.html",
         days=days, today=today, start=start, end=end, presets=presets,

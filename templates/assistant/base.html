@@ -22,6 +22,7 @@
   <a href="{{ url_for('assistant.bookings') }}" class="brand">Mondys<span>.</span> <small>front desk</small></a>
   <nav>
     <a href="{{ url_for('assistant.bookings') }}" class="{% if request.endpoint in ('assistant.bookings', 'assistant.booking_detail') %}active{% endif %}">Bookings</a>
+    <a href="{{ url_for('assistant.schedule_view') }}" class="{% if request.endpoint == 'assistant.schedule_view' %}active{% endif %}">Schedule</a>
     <a href="{{ url_for('assistant.walk_in') }}" class="{% if request.endpoint == 'assistant.walk_in' %}active{% endif %}">+ Walk-in booking</a>
     <a href="{{ url_for('assistant.logout') }}" class="logout">Logout</a>
   </nav>

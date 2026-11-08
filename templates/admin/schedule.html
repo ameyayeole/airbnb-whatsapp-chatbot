@@ -4,9 +4,11 @@
 <h1>Schedule</h1>
 <div class="kicker">see rooms, meals &amp; activities for any day, at a glance</div>
 <p class="muted" style="max-width:680px; margin:-10px 0 28px; font-size:14px; line-height:1.6;">
-  One row per day. Each day lists every guest staying that night — their room, which meal plan
-  applies that day, and any activities they've booked for the stay — plus who's arriving and who's
-  leaving. Pick a quick range below, or set your own From/To dates (one date, or a stretch of many).
+  One row per day. Each day lists every <strong>confirmed</strong> guest staying that night — their
+  room, which meal plan applies that day, any activities they've booked, and how much they've paid
+  so far (advance online via the WhatsApp QR, or cash/UPI/card at the desk) versus what's still owed —
+  plus who's arriving and who's leaving. A booking still awaiting its advance hasn't happened yet, so
+  it won't show up here. Pick a quick range below, or set your own From/To dates.
 </p>
 
 <div class="card" style="padding:20px 22px;">
@@ -41,13 +43,17 @@
     {{ day.rooms_occupied }} room{{ 's' if day.rooms_occupied != 1 else '' }} ·
     {{ day.guests }} guest{{ 's' if day.guests != 1 else '' }} ·
     {{ day.arrivals }} arriving · {{ day.departures }} departing
+    {% if day.bookings %}
+      · paid <strong>₹{{ '{:,}'.format(day.total_paid) }}</strong>{% if day.total_pending > 0 %} · pending <strong>₹{{ '{:,}'.format(day.total_pending) }}</strong>{% endif %}
+    {% endif %}
   </p>
 
   {% if day.bookings %}
   <table>
-    <thead><tr><th>Guest</th><th>Room</th><th>Meals today</th><th>Activities booked</th><th>Pax</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Guest</th><th>Room</th><th>Meals today</th><th>Activities booked</th><th>Pax</th><th>Paid / Pending</th><th>Status</th><th></th></tr></thead>
     <tbody>
       {% for b in day.bookings %}
+      {% set balance_due = (b.total_amount or 0) - (b.amount_paid or 0) %}
       <tr>
         <td><strong>{{ b.guest_name }}</strong><br><span class="muted">+{{ b.phone }}</span></td>
         <td>{{ b.room_type }} × {{ b.room_count or 1 }}</td>
@@ -58,10 +64,14 @@
         </td>
         <td>{{ (b.adults or 0) + (b.children or 0) }}</td>
         <td>
+          ₹{{ '{:,}'.format(b.amount_paid or 0) }}
+          {% if balance_due > 0 %}<br><span class="pill pending" style="font-size:11px;">₹{{ '{:,}'.format(balance_due) }} due</span>
+          {% else %}<br><span class="pill confirmed" style="font-size:11px;">✓ Paid</span>{% endif %}
+        </td>
+        <td>
           {% if b.check_in == day.date %}<span class="pill confirmed">Arriving</span>
           {% elif b.check_out == day.date %}<span class="pill pending">Departing</span>
           {% else %}<span class="pill cancelled">Staying</span>{% endif %}
-          {% if b.status == 'pending_payment' %}<br><span class="muted">Payment pending</span>{% endif %}
         </td>
         <td><a class="btn sm" href="{{ url_for('admin.booking_detail', booking_id=b.id) }}">Open</a></td>
       </tr>
@@ -69,7 +79,7 @@
     </tbody>
   </table>
   {% else %}
-  <p class="muted">No bookings for this day.</p>
+  <p class="muted">No confirmed bookings for this day.</p>
   {% endif %}
 </div>
 {% endfor %}

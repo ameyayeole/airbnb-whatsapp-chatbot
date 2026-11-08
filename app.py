@@ -172,14 +172,6 @@ def api_book():
         return jsonify({"ok": False, "error": "This booking link has already been used."}), 409
 
     try:
-        if not database.check_availability(
-            data["check_in"], data["check_out"], data["room_type"], int(data.get("room_count", 1))
-        ):
-            return jsonify({"ok": False, "error": "Selected room is no longer available for these dates."}), 409
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"Availability check failed: {e}"}), 500
-
-    try:
         # Recompute server-side so the client can't tamper with totals.
         activities_d1 = data.get("activities_d1") or {}
         activities_d2 = data.get("activities_d2") or {}
@@ -199,18 +191,20 @@ def api_book():
         total_amount = totals["total"]
         advance_amount = round(total_amount * config.ADVANCE_PERCENT / 100)
 
-        booking_id, booking_ref = database.create_booking(
+        # Availability check + insert happen atomically (one DB transaction, advisory-locked
+        # on the room type) so two guests racing for the last room can't both succeed.
+        result = database.create_booking_if_available(
+            check_in=data["check_in"],
+            check_out=data["check_out"],
+            room_type=data["room_type"],
+            room_count=int(data.get("room_count", 1)),
             phone=rec["phone"],
             guest_name=rec["guest_name"],
             email=rec["email"],
             adults=int(data.get("adults", 0)),
             children=int(data.get("children", 0)),
-            check_in=data["check_in"],
-            check_out=data["check_out"],
             nights=int(data["nights"]),
             special_requests=data.get("special_requests"),
-            room_type=data["room_type"],
-            room_count=int(data.get("room_count", 1)),
             food_preference=data.get("food_preference"),
             veg_count=int(data.get("veg_count", 0)),
             nv_count=int(data.get("nv_count", 0)),
@@ -224,6 +218,9 @@ def api_book():
             total_amount=total_amount,
             advance_amount=advance_amount,
         )
+        if result is None:
+            return jsonify({"ok": False, "error": "Selected room is no longer available for these dates."}), 409
+        booking_id, booking_ref = result
 
         database.mark_token_used(token)
 
@@ -382,6 +379,11 @@ def api_feedback():
         return jsonify({"ok": False, "error": "Invalid feedback link."}), 400
     if rec["used"]:
         return jsonify({"ok": False, "error": "This feedback link has already been used."}), 409
+    if database.has_feedback(rec["booking_id"]):
+        # Belt-and-braces: a second feedback link for the same booking (e.g. "Send feedback
+        # request" clicked twice) would otherwise still be unused and let feedback through twice.
+        database.mark_feedback_token_used(token)
+        return jsonify({"ok": False, "error": "Feedback has already been submitted for this booking."}), 409
 
     try:
         rating = int(data.get("rating") or 0)

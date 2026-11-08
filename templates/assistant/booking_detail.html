@@ -7,7 +7,6 @@
   <h1 style="margin:0;">{{ b.booking_ref or 'Booking #' ~ b.id }}</h1>
   {{ m.status_pill(b.status) }}
   {{ m.source_pill(b.source) }}
-  <span class="readonly-note">Read-only</span>
 </div>
 
 <div class="grid2">
@@ -65,12 +64,68 @@
   </div>
   <div class="card">
     <h2>Payment</h2>
+    {% set amount_paid = b.amount_paid or 0 %}
+    {% set balance_due = (b.total_amount or 0) - amount_paid %}
     {{ m.row('Total', '₹' ~ '{:,}'.format(b.total_amount or 0)) }}
     {{ m.row('Advance due', '₹' ~ '{:,}'.format(b.advance_amount or 0)) }}
+    {% if b.status == 'confirmed' %}
+      {{ m.row('Paid so far', '₹' ~ '{:,}'.format(amount_paid)) }}
+      {{ m.row('Balance', 'Paid ✓' if balance_due <= 0 else '₹' ~ '{:,}'.format(balance_due)) }}
+    {% endif %}
     {{ m.row('Confirmed on', b.acknowledged_at.strftime('%d %b %Y, %H:%M') if b.acknowledged_at else none) }}
     {{ m.row('Feedback link sent', b.feedback_sent_at.strftime('%d %b %Y, %H:%M') if b.feedback_sent_at else none) }}
   </div>
 </div>
 
-<p class="muted" style="margin-top:8px;">This view is read-only. To change, cancel or confirm a booking, contact the owner.</p>
+{% if b.status == 'confirmed' and balance_due > 0 %}
+<div class="card">
+  <h2>Record a payment</h2>
+  <p class="muted">For cash, UPI or card paid directly at the desk — e.g. the remaining balance at check-in. Partial amounts are fine; a WhatsApp receipt is sent either way.</p>
+  <form method="post" action="{{ url_for('assistant.booking_record_payment', booking_id=b.id) }}"
+        onsubmit="if(!confirm('Record this payment and send the guest a WhatsApp receipt?')) return false; this.querySelector('button[type=submit]').disabled=true; return true;">
+    <div class="grid3">
+      <div class="field">
+        <label>Amount (₹) *</label>
+        <input type="number" name="amount" min="1" step="1" value="{{ balance_due }}" required>
+      </div>
+      <div class="field">
+        <label>Method</label>
+        <select name="method">
+          <option value="Cash">Cash</option>
+          <option value="UPI">UPI</option>
+          <option value="Card">Card</option>
+          <option value="Bank Transfer">Bank Transfer</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Note (optional)</label>
+        <input type="text" name="note" placeholder="e.g. paid at check-in">
+      </div>
+    </div>
+    <button type="submit" class="btn primary">💰 Record payment</button>
+  </form>
+</div>
+{% endif %}
+
+{% if payments %}
+<div class="card">
+  <h2>Payment history</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Note</th></tr></thead>
+    <tbody>
+      {% for p in payments %}
+      <tr>
+        <td class="muted">{{ p.created_at.strftime('%d %b %Y, %H:%M') if p.created_at else '' }}</td>
+        <td><strong>₹{{ '{:,}'.format(p.amount) }}</strong></td>
+        <td>{{ p.method or '—' }}</td>
+        <td class="muted">{{ p.note or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<p class="muted" style="margin-top:8px;">You can record payments above. To change, cancel or confirm a booking itself, contact the owner.</p>
 {% endblock %}

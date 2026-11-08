@@ -44,7 +44,12 @@
 <div class="grid2">
   <div class="card">
     <h2>Activities</h2>
-    <p class="mono">Day 1: {{ b.activities_d1 or '—' }}<br>Day 2: {{ b.activities_d2 or '—' }}</p>
+    <p class="muted" style="margin:0 0 6px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; font-size:12px;">Day 1 · On-farm</p>
+    {% if activities_d1 %}<ul style="margin:0 0 14px; padding-left:20px; line-height:1.7;">{% for a in activities_d1 %}<li>{{ a }}</li>{% endfor %}</ul>
+    {% else %}<p class="muted" style="margin:0 0 14px;">None selected.</p>{% endif %}
+    <p class="muted" style="margin:0 0 6px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; font-size:12px;">Day 2 · Off-farm</p>
+    {% if activities_d2 %}<ul style="margin:0; padding-left:20px; line-height:1.7;">{% for a in activities_d2 %}<li>{{ a }}</li>{% endfor %}</ul>
+    {% else %}<p class="muted" style="margin:0;">None selected.</p>{% endif %}
   </div>
   <div class="card">
     <h2>Special requests</h2>
@@ -52,30 +57,95 @@
   </div>
 </div>
 
+{% set amount_paid = b.amount_paid or 0 %}
+{% set balance_due = (b.total_amount or 0) - amount_paid %}
 <div class="card">
   <h2>Totals</h2>
   <p style="font-size:18px;">Total: <strong>₹{{ '{:,}'.format(b.total_amount or 0) }}</strong> · Advance ({{ b.advance_amount and (b.advance_amount*100//(b.total_amount or 1)) or 0 }}%): <strong>₹{{ '{:,}'.format(b.advance_amount or 0) }}</strong></p>
-  {% if b.acknowledged_at %}<p class="muted">Acknowledged on {{ b.acknowledged_at }}</p>{% endif %}
+  <p style="font-size:16px; margin-top:8px;">
+    {% if b.status == 'confirmed' %}
+      Paid so far: <strong>₹{{ '{:,}'.format(amount_paid) }}</strong>
+      {% if balance_due <= 0 %}
+        &nbsp;<span class="pill confirmed">✓ Fully paid</span>
+      {% else %}
+        &nbsp;·&nbsp; Balance due: <strong>₹{{ '{:,}'.format(balance_due) }}</strong>
+      {% endif %}
+    {% endif %}
+  </p>
+  {% if b.acknowledged_at %}<p class="muted">Advance acknowledged on {{ b.acknowledged_at }}</p>{% endif %}
 </div>
+
+{% if payments %}
+<div class="card">
+  <h2>Payment history</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Amount</th><th>Method</th><th>Note</th></tr></thead>
+    <tbody>
+      {% for p in payments %}
+      <tr>
+        <td class="muted">{{ p.created_at.strftime('%d %b %Y, %H:%M') if p.created_at else '' }}</td>
+        <td><strong>₹{{ '{:,}'.format(p.amount) }}</strong></td>
+        <td>{{ p.method or '—' }}</td>
+        <td class="muted">{{ p.note or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
 {% if b.status == 'pending_payment' %}
 <div class="card">
   <h2>Actions</h2>
   <p class="muted">Once you've verified the guest paid the advance (₹{{ '{:,}'.format(b.advance_amount or 0) }}), acknowledge below to send them the confirmation message on WhatsApp.</p>
-  <form method="post" action="{{ url_for('admin.booking_acknowledge', booking_id=b.id) }}" class="inline" onsubmit="return confirm('Mark this booking as paid &amp; confirmed? A WhatsApp confirmation will be sent to the guest.');">
+  <form method="post" action="{{ url_for('admin.booking_acknowledge', booking_id=b.id) }}" class="inline"
+        onsubmit="if(!confirm('Mark this booking as paid &amp; confirmed? A WhatsApp confirmation will be sent to the guest.')) return false; this.querySelector('button[type=submit]').disabled=true; return true;">
     <button type="submit" class="btn primary">✓ Mark paid &amp; confirm</button>
   </form>
-  <form method="post" action="{{ url_for('admin.booking_cancel', booking_id=b.id) }}" class="inline" onsubmit="return confirm('Cancel this booking?');">
+  <form method="post" action="{{ url_for('admin.booking_cancel', booking_id=b.id) }}" class="inline"
+        onsubmit="if(!confirm('Cancel this booking?')) return false; this.querySelector('button[type=submit]').disabled=true; return true;">
     <button type="submit" class="btn danger">Cancel booking</button>
   </form>
 </div>
 {% elif b.status == 'confirmed' %}
+{% if balance_due > 0 %}
+<div class="card">
+  <h2>Record a payment</h2>
+  <p class="muted">For cash, UPI or card paid directly at the desk — e.g. the remaining balance at check-in. Partial amounts are fine; a WhatsApp receipt is sent either way.</p>
+  <form method="post" action="{{ url_for('admin.booking_record_payment', booking_id=b.id) }}"
+        onsubmit="if(!confirm('Record this payment and send the guest a WhatsApp receipt?')) return false; this.querySelector('button[type=submit]').disabled=true; return true;">
+    <div class="grid3">
+      <div class="field">
+        <label>Amount (₹) *</label>
+        <input type="number" name="amount" min="1" step="1" value="{{ balance_due }}" required>
+      </div>
+      <div class="field">
+        <label>Method</label>
+        <select name="method">
+          <option value="Cash">Cash</option>
+          <option value="UPI">UPI</option>
+          <option value="Card">Card</option>
+          <option value="Bank Transfer">Bank Transfer</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Note (optional)</label>
+        <input type="text" name="note" placeholder="e.g. paid at check-in">
+      </div>
+    </div>
+    <button type="submit" class="btn primary">💰 Record payment</button>
+  </form>
+</div>
+{% endif %}
 <div class="card">
   <h2>Actions</h2>
-  <form method="post" action="{{ url_for('admin.booking_send_feedback', booking_id=b.id) }}" class="inline" onsubmit="return confirm('Send a feedback request link to the guest on WhatsApp?');">
+  <form method="post" action="{{ url_for('admin.booking_send_feedback', booking_id=b.id) }}" class="inline"
+        onsubmit="if(!confirm('Send a feedback request link to the guest on WhatsApp?')) return false; this.querySelector('button[type=submit]').disabled=true; return true;">
     <button type="submit" class="btn primary">⭐ Send feedback request</button>
   </form>
-  <form method="post" action="{{ url_for('admin.booking_cancel', booking_id=b.id) }}" class="inline" onsubmit="return confirm('Cancel this booking?');">
+  <form method="post" action="{{ url_for('admin.booking_cancel', booking_id=b.id) }}" class="inline"
+        onsubmit="if(!confirm('Cancel this booking?')) return false; this.querySelector('button[type=submit]').disabled=true; return true;">
     <button type="submit" class="btn danger">Cancel booking</button>
   </form>
   {% if b.feedback_sent_at %}<p class="muted" style="margin-top:14px;">Feedback link last sent: {{ b.feedback_sent_at }}</p>{% endif %}

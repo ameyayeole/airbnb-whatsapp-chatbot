@@ -70,9 +70,70 @@
     </div>
   </div>
 
+  <h2 style="margin-top:12px;">Activities (optional)</h2>
+  <div class="grid2">
+    <div>
+      <div class="muted" style="margin-bottom:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; font-size:12px;">Day 1 · On-farm</div>
+      {% for a in activities_d1 %}
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:15px; font-weight:500; color:#2C2013; flex:1;">
+          <input type="checkbox" name="act_d1_{{ a.key }}" value="1" {% if form.get('act_d1_' ~ a.key) %}checked{% endif %}>
+          {{ a.name }}
+          <span class="muted">({% if a.is_free %}Free{% else %}₹{{ a.price }}/{{ a.per_unit }}{% endif %})</span>
+        </label>
+        {% if a.per_unit in ('person', 'head', 'boat') %}
+        <input type="number" name="act_d1_{{ a.key }}_count" min="1"
+               value="{{ form.get('act_d1_' ~ a.key ~ '_count', '') }}"
+               placeholder="{{ 'boats' if a.per_unit == 'boat' else 'guests' }}" style="width:90px;">
+        {% endif %}
+      </div>
+      {% else %}
+      <p class="muted">No Day 1 activities configured.</p>
+      {% endfor %}
+    </div>
+    <div>
+      <div class="muted" style="margin-bottom:10px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; font-size:12px;">Day 2 · Off-farm</div>
+      {% for a in activities_d2 %}
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:15px; font-weight:500; color:#2C2013; flex:1;">
+          <input type="checkbox" name="act_d2_{{ a.key }}" value="1" {% if form.get('act_d2_' ~ a.key) %}checked{% endif %}>
+          {{ a.name }}
+          <span class="muted">({% if a.is_free %}Free{% else %}₹{{ a.price }}/{{ a.per_unit }}{% endif %})</span>
+        </label>
+        {% if a.per_unit in ('person', 'head', 'boat') %}
+        <input type="number" name="act_d2_{{ a.key }}_count" min="1"
+               value="{{ form.get('act_d2_' ~ a.key ~ '_count', '') }}"
+               placeholder="{{ 'boats' if a.per_unit == 'boat' else 'guests' }}" style="width:90px;">
+        {% endif %}
+      </div>
+      {% else %}
+      <p class="muted">No Day 2 activities configured.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <h2 style="margin-top:12px;">Payment</h2>
+  <p class="muted" style="margin:-4px 0 14px;">What did the guest hand over right now? Leave the amount blank to record the full total as paid — the usual case for a walk-in.</p>
+  <div class="grid2">
+    <div class="field">
+      <label>Amount received now (₹)</label>
+      <input type="number" name="amount_received" min="0" step="1" value="{{ form.get('amount_received', '') }}" placeholder="full total if left blank">
+    </div>
+    <div class="field">
+      <label>Method</label>
+      <select name="payment_method">
+        <option value="Cash" {% if form.get('payment_method', 'Cash') == 'Cash' %}selected{% endif %}>Cash</option>
+        <option value="UPI" {% if form.get('payment_method') == 'UPI' %}selected{% endif %}>UPI</option>
+        <option value="Card" {% if form.get('payment_method') == 'Card' %}selected{% endif %}>Card</option>
+        <option value="Bank Transfer" {% if form.get('payment_method') == 'Bank Transfer' %}selected{% endif %}>Bank Transfer</option>
+        <option value="Other" {% if form.get('payment_method') == 'Other' %}selected{% endif %}>Other</option>
+      </select>
+    </div>
+  </div>
+
   <div class="field">
     <label>Special requests / notes</label>
-    <textarea name="special_requests" rows="3" placeholder="Activities, food preferences, arrival time…">{{ form.get('special_requests', '') }}</textarea>
+    <textarea name="special_requests" rows="3" placeholder="Food preferences, arrival time…">{{ form.get('special_requests', '') }}</textarea>
   </div>
 
   <div class="field">
