@@ -27,17 +27,22 @@
   {% if pending %}
   <table>
     <thead><tr>
-      <th>Ref</th><th>Guest</th><th>Dates</th><th>Room</th><th>Total</th><th>Advance</th><th></th>
+      <th>Ref</th><th>Guest</th><th>Dates</th><th>Room</th><th>Total</th><th>Paid / Pending</th><th></th>
     </tr></thead>
     <tbody>
       {% for b in pending %}
+      {% set balance_due = (b.total_amount or 0) - (b.amount_paid or 0) %}
       <tr>
         <td class="mono">{{ b.booking_ref }}</td>
         <td><strong>{{ b.guest_name }}</strong><br><span class="muted">+{{ b.phone }}</span></td>
         <td>{{ b.check_in }} → {{ b.check_out }}<br><span class="muted">{{ b.nights }} night(s)</span></td>
         <td>{{ b.room_type }} × {{ b.room_count }}</td>
         <td>₹{{ '{:,}'.format(b.total_amount or 0) }}</td>
-        <td><strong>₹{{ '{:,}'.format(b.advance_amount or 0) }}</strong></td>
+        <td>
+          ₹{{ '{:,}'.format(b.amount_paid or 0) }}
+          {% if balance_due > 0 %}<br><span class="pill pending" style="font-size:11px;">₹{{ '{:,}'.format(balance_due) }} due</span>
+          {% else %}<br><span class="pill confirmed" style="font-size:11px;">✓ Paid</span>{% endif %}
+        </td>
         <td><a class="btn sm primary" href="{{ url_for('admin.booking_detail', booking_id=b.id) }}">Open</a></td>
       </tr>
       {% endfor %}

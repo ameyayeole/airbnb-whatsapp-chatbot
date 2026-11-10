@@ -231,6 +231,11 @@ def schedule_view():
 _KV_FIELDS = [
     ("property_name",       "Property name", "text"),
 
+    ("hero_kicker",         "Hero — small kicker text (above headline)", "text"),
+    ("hero_heading",        "Hero — headline (plain part)", "text"),
+    ("hero_heading_highlight", "Hero — headline (highlighted/italic part)", "text"),
+    ("hero_subtext",        "Hero — paragraph below headline", "textarea"),
+
     ("about_kicker",        "About Us — small kicker text", "text"),
     ("about_heading",       "About Us — heading", "text"),
     ("about_body",          "About Us — body text", "textarea"),

@@ -266,9 +266,9 @@
       {% endif %}
 
       <div class="hero-overlay">
-        <div class="hero-kicker">an organic farm stay in Kudal</div>
-        <h1>Wakeup to birdsong, eat what you <em style="font-style:italic; color:#E9C57E;">picked yourself.</em></h1>
-        <p>A two-acre family farm in the Konkan green belt. Petting barns, bullock-cart rides, kayaks on the creek, and a breakfast plate you harvest at dawn — close to Malvan's beaches and the Sahyadri foothills.</p>
+        <div class="hero-kicker">{{ s.hero_kicker or "an organic farm stay in Kudal" }}</div>
+        <h1>{{ s.hero_heading or "Wakeup to birdsong, eat what you" }} <em style="font-style:italic; color:#E9C57E;">{{ s.hero_heading_highlight or "picked yourself." }}</em></h1>
+        <p>{{ s.hero_subtext or "A two-acre family farm in the Konkan green belt. Petting barns, bullock-cart rides, kayaks on the creek, and a breakfast plate you harvest at dawn — close to Malvan's beaches and the Sahyadri foothills." }}</p>
         <div class="hero-cta" style="display:flex; gap:14px; flex-wrap:wrap;">
           <a href="{{ wa_link }}" class="primary">Book a Stay</a>
           <a href="#rooms" class="ghost">Explore rooms →</a>
