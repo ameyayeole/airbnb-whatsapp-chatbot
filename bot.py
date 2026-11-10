@@ -1095,7 +1095,8 @@ def _show_summary(phone: str):
     )
     SESSIONS[phone]["_totals"] = totals
 
-    advance = round(totals["total"] * config.ADVANCE_PERCENT / 100)
+    advance_pct = int(_s("advance_percent", str(config.ADVANCE_PERCENT)) or config.ADVANCE_PERCENT)
+    advance = round(totals["total"] * advance_pct / 100)
 
     d1_acts = _act_label(s["activities_d1"])
     d2_acts = _act_label(s["activities_d2"]) if s["activities_d2"] else "None"
@@ -1133,7 +1134,7 @@ def _show_summary(phone: str):
         f"  Transport:   Rs.{totals['transport']:,}\n"
         f"{'—'*22}\n"
         f"  *TOTAL:      Rs.{totals['total']:,}*\n"
-        f"  Advance due: Rs.{advance:,} ({config.ADVANCE_PERCENT}%)\n"
+        f"  Advance due: Rs.{advance:,} ({advance_pct}%)\n"
         f"{'—'*22}\n\n"
         "Please review and confirm."
     )
@@ -1164,7 +1165,8 @@ def _confirm_booking(phone: str, content: str):
     s      = _session(phone)
     totals = s.get("_totals") or {}
     pax    = _pax(phone)
-    advance = round(totals.get("total", 0) * config.ADVANCE_PERCENT / 100)
+    advance_pct = int(_s("advance_percent", str(config.ADVANCE_PERCENT)) or config.ADVANCE_PERCENT)
+    advance = round(totals.get("total", 0) * advance_pct / 100)
 
     booking_id, ref = database.create_booking(
         phone            = phone,

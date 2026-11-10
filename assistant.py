@@ -165,15 +165,20 @@ def build_schedule_days(start: date, end: date) -> list:
     while d <= end:
         day_bookings = [b for b in active_bookings if b["check_in"] <= d <= b["check_out"]]
         day_bookings.sort(key=lambda b: (b["check_in"] != d, (b["room_type"] or ""), (b["guest_name"] or "")))
+        # A guest departing on `d` has already freed the room that same day, so they're
+        # listed here (for front-desk visibility) but excluded from occupancy/money totals
+        # to avoid double-counting the room and the stay's cost against the arriving guest
+        # on a same-day turnover.
+        occupying = [b for b in day_bookings if b["check_in"] <= d < b["check_out"]]
         days.append({
             "date": d,
             "bookings": day_bookings,
-            "rooms_occupied": sum(b.get("room_count") or 1 for b in day_bookings),
-            "guests": sum((b.get("adults") or 0) + (b.get("children") or 0) for b in day_bookings),
+            "rooms_occupied": sum(b.get("room_count") or 1 for b in occupying),
+            "guests": sum((b.get("adults") or 0) + (b.get("children") or 0) for b in occupying),
             "arrivals": sum(1 for b in day_bookings if b["check_in"] == d),
             "departures": sum(1 for b in day_bookings if b["check_out"] == d),
-            "total_paid": sum(b.get("amount_paid") or 0 for b in day_bookings),
-            "total_pending": sum(max((b.get("total_amount") or 0) - (b.get("amount_paid") or 0), 0) for b in day_bookings),
+            "total_paid": sum(b.get("amount_paid") or 0 for b in occupying),
+            "total_pending": sum(max((b.get("total_amount") or 0) - (b.get("amount_paid") or 0), 0) for b in occupying),
         })
         d += timedelta(days=1)
     return days
@@ -308,7 +313,7 @@ def walk_in_context(form) -> dict:
         "activities_d2": database.list_activities(day="d2"),
         "today": datetime.now(IST).date().isoformat(),
         "form": form,
-        "advance_percent": config.ADVANCE_PERCENT,
+        "advance_percent": int(database.get_setting("advance_percent", str(config.ADVANCE_PERCENT)) or config.ADVANCE_PERCENT),
     }
 
 
@@ -339,7 +344,8 @@ def book_walk_in(form) -> tuple:
         room_count=data["room_count"],
     )
     total = totals["total"]
-    advance = round(total * config.ADVANCE_PERCENT / 100)
+    advance_pct = int(database.get_setting("advance_percent", "50") or 50)
+    advance = round(total * advance_pct / 100)
 
     # Availability check + insert happen atomically (one DB transaction, advisory-locked on
     # the room type) so two walk-ins — or a walk-in and an online booking — racing for the

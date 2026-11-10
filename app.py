@@ -189,7 +189,8 @@ def api_book():
             room_count=int(data.get("room_count", 1)),
         )
         total_amount = totals["total"]
-        advance_amount = round(total_amount * config.ADVANCE_PERCENT / 100)
+        advance_pct = int(database.get_setting("advance_percent", "50") or 50)
+        advance_amount = round(total_amount * advance_pct / 100)
 
         # Availability check + insert happen atomically (one DB transaction, advisory-locked
         # on the room type) so two guests racing for the last room can't both succeed.
